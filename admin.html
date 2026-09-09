@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>川味小馆 - 店家管理后台</title>
+<style>
+:root {
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --text: #2c2c2a;
+  --text-muted: #888780;
+  --border: #e0e0dc;
+  --accent: #534AB7;
+  --danger: #A32D2D;
+  --success: #3B6D11;
+  --warning: #BA7517;
+  --info: #185FA5;
+  --radius: 12px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+.topbar {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar h1 { font-size: 18px; font-weight: 600; color: var(--accent); }
+.topbar-right { display: flex; gap: 12px; align-items: center; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #ccc;
+  transition: background 0.3s;
+}
+.status-dot.online { background: #3B6D11; animation: pulse 2s infinite; }
+.status-dot.offline { background: #E24B4A; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+.tabs { display: flex; gap: 4px; background: var(--card); border-radius: var(--radius); padding: 4px; margin-bottom: 20px; }
+.tab-btn {
+  flex: 1; padding: 10px 16px; border: none; background: transparent;
+  font-size: 14px; cursor: pointer; border-radius: 8px; color: var(--text-muted);
+  transition: all 0.2s; font-weight: 500;
+}
+.tab-btn.active { background: var(--accent); color: #fff; }
+.tab-btn:hover:not(.active) { background: #f0f0ee; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Stats cards */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--card); border-radius: var(--radius); padding: 16px;
+  border: 1px solid var(--border);
+}
+.stat-card .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.stat-card .value { font-size: 28px; font-weight: 600; }
+.stat-card .sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stat-card.orders .value { color: var(--info); }
+.stat-card.revenue .value { color: var(--success); }
+.stat-card.tables .value { color: var(--accent); }
+.stat-card.unpaid .value { color: var(--warning); }
+
+/* Order table */
+.section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.section-header h2 { font-size: 15px; font-weight: 600; }
+.refresh-btn {
+  padding: 6px 14px; border: 1px solid var(--border); background: var(--card);
+  border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text);
+  display: flex; align-items: center; gap: 6px; transition: all 0.2s;
+}
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.refresh-btn .spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.table-group {
+  background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+  margin-bottom: 16px; overflow: hidden;
+}
+.table-group-header {
+  padding: 12px 16px; background: #fafafa; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.table-info { display: flex; align-items: center; gap: 12px; }
+.table-tag {
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  background: var(--accent); color: #fff;
+}
+.table-session { font-family: monospace; font-size: 11px; color: var(--text-muted); }
+.table-actions { display: flex; gap: 8px; }
+.btn-clear {
+  padding: 6px 14px; border: 1px solid var(--danger); background: transparent;
+  color: var(--danger); border-radius: 8px; cursor: pointer; font-size: 12px;
+  transition: all 0.2s;
+}
+.btn-clear:hover { background: var(--danger); color: #fff; }
+.btn-pay {
+  padding: 6px 14px; border: 1px solid var(--success); background: transparent;
+  color: var(--success); border-radius: 8px; cursor: pointer; font-size: 12px;
+  transition: all 0.2s;
+}
+.btn-pay:hover { background: var(--success); color: #fff; }
+.btn-pay.paid-btn { background: #eaf3de; color: var(--success); border-color: transparent; cursor: default; }
+
+.order-item {
+  padding: 12px 16px; border-bottom: 1px solid #f0f0ee;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.order-item:last-child { border-bottom: none; }
+.order-id { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+.order-customer { font-weight: 500; font-size: 14px; }
+.order-items-list { margin-top: 8px; }
+.dish-row {
+  display: flex; justify-content: space-between; padding: 4px 0;
+  font-size: 13px; color: var(--text-muted);
+}
+.dish-name { color: var(--text); }
+.order-total {
+  text-align: right; padding: 12px 16px; background: #fafafa;
+  font-size: 16px; font-weight: 600; color: var(--danger);
+}
+.order-status {
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+}
+.status-confirmed { background: #E6F1FB; color: #185FA5; }
+.status-paid { background: #EAF3DE; color: #3B6D11; }
+
+/* Menu panel */
+.menu-category {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden;
+}
+.cat-header {
+  padding: 12px 16px; background: #fafafa; border-bottom: 1px solid var(--border);
+  font-weight: 600; font-size: 14px; color: var(--accent);
+}
+.menu-table { width: 100%; border-collapse: collapse; }
+.menu-table th {
+  text-align: left; padding: 10px 16px; font-size: 12px; color: var(--text-muted);
+  font-weight: 500; border-bottom: 1px solid var(--border);
+}
+.menu-table td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+.menu-table tr:last-child td { border-bottom: none; }
+.price-cell { font-weight: 600; color: var(--danger); white-space: nowrap; }
+.spicy-tag {
+  padding: 2px 8px; border-radius: 4px; font-size: 11px;
+}
+.spicy-none { background: #f0f0ee; color: #666; }
+.spicy-mild { background: #FAF0E6; color: #BA7517; }
+.spicy-medium { background: #FAECE7; color: #993C1D; }
+.spicy-hot { background: #FCEBEB; color: #A32D2D; }
+
+/* Import section */
+.import-area {
+  background: var(--card); border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 32px; text-align: center; margin-bottom: 20px; cursor: pointer;
+  transition: all 0.2s;
+}
+.import-area:hover { border-color: var(--accent); background: #fafaff; }
+.import-area input { display: none; }
+.import-text { font-size: 14px; color: var(--text-muted); }
+.import-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+  border-radius: var(--radius); font-size: 14px; z-index: 999;
+  opacity: 0; transform: translateY(10px); transition: all 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: #EAF3DE; color: var(--success); border: 1px solid #97C459; }
+.toast.error { background: #FCEBEB; color: var(--danger); border: 1px solid #F09595; }
+.toast.info { background: #E6F1FB; color: var(--info); border: 1px solid #85B7EB; }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 48px 24px; color: var(--text-muted);
+}
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; }
+
+/* Settings */
+.setting-row {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 16px; margin-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.setting-label { font-size: 14px; font-weight: 500; }
+.setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.input-field {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; width: 280px; outline: none;
+}
+.input-field:focus { border-color: var(--accent); }
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .container { padding: 12px; }
+  .input-field { width: 180px; }
+}
+
+.table-group.settled {
+  opacity: 0.65;
+  border-color: #d4d4d0;
+}
+.table-group.settled .table-group-header {
+  background: #efefed;
+}
+.table-group.settled .table-tag {
+  background: #999;
+}
+
+.new-order-badge {
+  display: inline-block; background: var(--danger); color: #fff;
+  font-size: 10px; padding: 1px 6px; border-radius: 10px;
+  margin-left: 6px; animation: pulse 1.5s infinite;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>川味小馆 · 店家后台</h1>
+  <div class="topbar-right">
+    <span id="connStatus" style="font-size:12px;color:#888;display:flex;align-items:center;gap:6px;">
+      <span class="status-dot offline" id="statusDot"></span>
+      <span id="statusText">未连接</span>
+    </span>
+    <span id="lastUpdate" style="font-size:11px;color:#bbb;"></span>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('orders')">订单看板</button>
+  <button class="tab-btn" onclick="switchTab('menu')">菜单管理</button>
+  <button class="tab-btn" onclick="switchTab('settings')">设置</button>
+</div>
+
+<!-- ========== 订单看板 ========== -->
+<div class="panel active" id="panel-orders">
+  <div class="stats-grid">
+    <div class="stat-card orders"><div class="label">今日订单</div><div class="value" id="statOrders">0</div><div class="sub">笔</div></div>
+    <div class="stat-card revenue"><div class="label">总金额</div><div class="value" id="statRevenue">0</div><div class="sub">元</div></div>
+    <div class="stat-card tables"><div class="label">活跃桌台</div><div class="value" id="statTables">0</div><div class="sub">桌（活跃）</div></div>
+    <div class="stat-card unpaid"><div class="label">未支付</div><div class="value" id="statUnpaid">0</div><div class="sub">笔</div></div>
+  </div>
+
+  <div class="section-header">
+    <h2>实时订单 <span id="newOrderBadge" class="new-order-badge" style="display:none;">新订单!</span></h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-clear" onclick="cleanLegacy()" style="font-size:12px;">清理历史脏数据</button>
+      <button class="refresh-btn" onclick="loadOrders()">
+        <span id="refreshIcon">&#x21bb;</span> 刷新
+      </button>
+    </div>
+  </div>
+  <div id="ordersContainer"></div>
+</div>
+
+<!-- ========== 菜单管理 ========== -->
+<div class="panel" id="panel-menu">
+  <div class="section-header">
+    <h2>当前菜单</h2>
+    <button class="refresh-btn" onclick="loadMenu()"><span>&#x21bb;</span> 从后端同步</button>
+  </div>
+  <div class="import-area" onclick="document.getElementById('menuFileInput').click()">
+    <input type="file" id="menuFileInput" accept=".json" onchange="importMenu(event)">
+    <div class="import-icon">&#x1F4C1;</div>
+    <div class="import-text">点击上传 menu.json 文件，或从后端一键导入菜单</div>
+  </div>
+  <div id="menuContainer"></div>
+</div>
+
+<!-- ========== 设置 ========== -->
+<div class="panel" id="panel-settings">
+  <div class="section-header"><h2>系统设置</h2></div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">后端地址</div>
+      <div class="setting-desc">API 服务地址，默认自动使用当前域名（本地开发或云托管均可）</div>
+    </div>
+    <input class="input-field" type="text" id="apiBaseUrl" value=""
+           onchange="saveSettings()">
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">自动刷新间隔</div>
+      <div class="setting-desc">订单看板自动刷新频率（秒），设为 0 则关闭自动刷新</div>
+    </div>
+    <input class="input-field" type="number" id="refreshInterval" value="5" min="0" max="60"
+           onchange="saveSettings(); restartPolling();" style="width:100px;">
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">声音提示</div>
+      <div class="setting-desc">新订单到达时播放提示音</div>
+    </div>
+    <select class="input-field" id="soundEnabled" onchange="saveSettings()" style="width:120px;">
+      <option value="yes">开启</option>
+      <option value="no">关闭</option>
+    </select>
+  </div>
+
+  <div style="margin-top: 24px;">
+    <button class="btn-clear" style="padding:10px 24px;font-size:14px;" onclick="testConnection()">测试连接</button>
+    <button class="refresh-btn" style="margin-left:8px;" onclick="loadOrders()">立即刷新数据</button>
+  </div>
+</div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = localStorage.getItem('apiBase') || window.location.origin;
+let lastOrderCount = 0;
+let pollTimer = null;
+let audioCtx = null;
+
+function $(id) { return document.getElementById(id); }
+
+function init() {
+  $('apiBaseUrl').value = API_BASE;
+  const interval = localStorage.getItem('refreshInterval') || '5';
+  $('refreshInterval').value = interval;
+  const sound = localStorage.getItem('soundEnabled') || 'yes';
+  $('soundEnabled').value = sound;
+  testConnection();
+  loadMenu();
+  loadOrders();
+  restartPolling();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['orders','menu','settings'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  $('panel-' + name).classList.add('active');
+}
+
+function saveSettings() {
+  localStorage.setItem('apiBase', $('apiBaseUrl').value);
+  localStorage.setItem('refreshInterval', $('refreshInterval').value);
+  localStorage.setItem('soundEnabled', $('soundEnabled').value);
+}
+
+async function api(path, opts={}) {
+  const base = $('apiBaseUrl').value.replace(/\/+$/, '');
+  const ts = Date.now(); // 防缓存
+  const url = base + path + (path.includes('?') ? '&' : '?') + '_t=' + ts;
+  const fetchOpts = { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }, ...opts };
+  const res = await fetch(url, fetchOpts);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(()=>'')}`);
+  return res.json();
+}
+
+function toast(msg, type='info') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setOnline(on) {
+  const dot = $('statusDot');
+  const txt = $('statusText');
+  dot.className = 'status-dot ' + (on ? 'online' : 'offline');
+  txt.textContent = on ? '已连接' : '未连接';
+}
+
+async function testConnection() {
+  try {
+    const d = await api('/health');
+    setOnline(true);
+    toast(`已连接 ${d.service||'后端'} v${d.version||'?'}`, 'success');
+  } catch(e) {
+    setOnline(false);
+    toast('无法连接到后端：' + e.message, 'error');
+  }
+}
+
+// ==================== Orders ====================
+let ordersData = [];
+
+async function loadOrders() {
+  try {
+    ordersData = await api('/api/orders/all');
+    renderOrders();
+    updateStats();
+    setOnline(true);
+    const now = new Date();
+    $('lastUpdate').textContent = `更新于 ${now.toLocaleTimeString('zh-CN')}`;
+
+    // Check for new orders
+    const currentCount = ordersData.count || ordersData.length || 0;
+    if (currentCount > lastOrderCount && lastOrderCount > 0) {
+      $('newOrderBadge').style.display = '';
+      playSound();
+      setTimeout(() => $('newOrderBadge').style.display = 'none', 3000);
+    }
+    lastOrderCount = currentCount;
+  } catch(e) {
+    console.error('Load orders error:', e);
+    if ($('panel-orders').classList.contains('active')) {
+      renderEmpty('加载失败：' + e.message);
+    }
+  }
+}
+
+function updateStats() {
+  const orders = ordersData.orders || ordersData || [];
+  const total = orders.reduce((s,o) => s + (o.total||0), 0);
+  const unpaidOrders = orders.filter(o => !o.paid);
+
+  // 活跃桌台 = 有未支付订单的桌台（已清台或已全部付完的都不算活跃）
+  const activeSessions = new Set(
+    unpaidOrders.map(o => o.session_id).filter(Boolean)
+  );
+
+  // 已结账桌台 = 有订单但全部已付的桌台（还没清台，但客人已经走了）
+  const allSessions = new Set(orders.map(o => o.session_id).filter(Boolean));
+  const settledSessions = [...allSessions].filter(sid => {
+    const sessionOrders = orders.filter(o => o.session_id === sid);
+    return sessionOrders.length > 0 && sessionOrders.every(o => o.paid);
+  });
+
+  $('statOrders').textContent = orders.length;
+  $('statRevenue').textContent = total.toFixed(0);
+  $('statTables').textContent = activeSessions.size;
+  $('statUnpaid').textContent = unpaidOrders.length;
+
+  // 更新活跃桌台的子标签，区分活跃和已结账
+  const tablesSub = $('statTables').parentElement.querySelector('.sub');
+  if (tablesSub) {
+    tablesSub.textContent = `桌（活跃）${settledSessions.length > 0 ? ` / ${settledSessions.length}桌已结账` : ''}`;
+  }
+}
+
+function renderOrders() {
+  const orders = ordersData.orders || ordersData || [];
+  const c = $('ordersContainer');
+
+  if (!orders.length) {
+    renderEmpty('暂无订单');
+    return;
+  }
+
+  // Group by session_id
+  const groups = {};
+  let groupOrder = [];
+  orders.forEach(o => {
+    const sid = o.session_id || '__legacy__';
+    if (!groups[sid]) {
+      groups[sid] = [];
+      groupOrder.push(sid);
+    }
+    groups[sid].push(o);
+  });
+
+  // Sort: newest session first
+  groupOrder.sort((a,b) => {
+    if (a === '__legacy__') return 1;
+    if (b === '__legacy__') return -1;
+    return b.localeCompare(a);
+  });
+
+  let html = '';
+  groupOrder.forEach(sid => {
+    const grp = groups[sid];
+    const isLegacy = sid === '__legacy__';
+    const displayName = isLegacy ? '历史订单（无桌号）' : sid;
+    const tableNum = isLegacy ? '--' : sid.split('_')[0]?.replace('sess','T') || '?';
+    // 判断该桌是否全部已付（已结账）
+    const allPaid = grp.every(o => o.paid);
+    const settledClass = allPaid ? ' settled' : '';
+    const settledTag = allPaid ? '<span style="background:#3B6D11;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;margin-left:6px;">已结账</span>' : '';
+
+    html += `<div class="table-group${settledClass}">
+      <div class="table-group-header">
+        <div class="table-info">
+          <span class="table-tag">${isLegacy ? '归档' : ('第 ' + tableNum + ' 桌')}</span>
+          ${settledTag}
+          ${!isLegacy ? '<span class="table-session">' + sid + '</span>' : ''}
+          <span style="font-size:12px;color:#888;">${grp.length} 笔订单 / ¥${grp.reduce((s,o)=>s+(o.total||0),0)}</span>
+        </div>
+        <div class="table-actions">
+          ${!isLegacy ? `<button class="btn-clear" onclick="clearTable('${sid}')">清台</button>` : ''}
+        </div>
+      </div>`;
+
+    grp.forEach(o => {
+      const paid = !!o.paid;
+      html += `<div class="order-item">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span class="order-id">${o.order_id}</span>
+            <span class="order-status ${paid ? 'status-paid' : 'status-confirmed'}">${paid ? '已付' : '待付'}</span>
+            ${o.customer ? `<span class="order-customer">${o.customer}</span>` : ''}
+          </div>
+          <div class="order-items-list">`;
+      (o.items||[]).forEach(d => {
+        html += `<div class="dish-row">
+          <span class="dish-name">${d.dish_name}</span>
+          <span>${d.quantity} x ¥${d.unit_price} = <b>¥${d.subtotal}</b></span>
+        </div>`;
+      });
+      html += `</div></div>
+        <div style="text-align:right;">
+          <div style="font-size:18px;font-weight:600;color:${paid?'var(--success)':'var(--danger)'};">¥${o.total}</div>
+          ${!paid && !isLegacy ?
+            `<button class="btn-pay" onclick="payOrder('${o.order_id}')">标记已付</button>` :
+            (paid ? `<button class="btn-pay paid-btn">已收款</button>` : '')}
+        </div>
+      </div>`;
+    });
+
+    html += '</div>';
+  });
+
+  c.innerHTML = html;
+}
+
+function renderEmpty(msg) {
+  $('ordersContainer').innerHTML =
+    `<div class="empty-state"><div class="empty-icon">&#x1F4CB;</div><div class="empty-text">${msg}</div></div>`;
+}
+
+async function clearTable(sessionId) {
+  if (!confirm(`确认清台？\n\n将清除桌号 ${sessionId} 的所有订单和 AI 对话记录。\n此操作不可撤销！`)) return;
+  try {
+    await api(`/api/orders/clear?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' });
+    toast('清台成功，该桌位已重置', 'success');
+    loadOrders();
+  } catch(e) {
+    toast('清台失败：' + e.message, 'error');
+  }
+}
+
+async function cleanLegacy() {
+  if (!confirm('确认清理？\n\n将删除所有没有 session_id 的历史遗留订单（通常是早期测试数据）。\n此操作不可撤销！')) return;
+  try {
+    const res = await api('/api/orders/clean-legacy', { method: 'POST' });
+    toast(`已清理 ${res.removed} 条历史订单`, 'success');
+    loadOrders();
+  } catch(e) {
+    toast('清理失败：' + e.message, 'error');
+  }
+}
+
+async function payOrder(orderId) {
+  try {
+    const res = await api('/api/orders/' + encodeURIComponent(orderId) + '/pay', { method: 'POST' });
+    toast(`订单 ${orderId} 已标记为已付款`, 'success');
+    loadOrders();
+  } catch(e) {
+    toast('操作失败：' + e.message, 'error');
+  }
+}
+
+// ==================== Menu ====================
+let menuData = null;
+
+async function loadMenu() {
+  try {
+    menuData = await api('/api/menu');
+    renderMenu();
+  } catch(e) {
+    $('menuContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">&#x1F37D;</div><div class="empty-text">加载失败：${e.message}<br><br>请确保后端正在运行</div></div>`;
+  }
+}
+
+function renderMenu() {
+  if (!menuData || !menuData.categories) return;
+  let html = `<p style="margin-bottom:12px;font-size:13px;color:#666;">
+    餐厅：<b>${menuData.restaurant||'川味小馆'}</b> |
+    分类 ${menuData.categories.length} 个 |
+    菜品 ${(menuData.categories||[]).reduce((s,c)=>s+(c.items||[]).length,0)} 道
+  </p>`;
+
+  (menuData.categories||[]).forEach(cat => {
+    html += `<div class="menu-category">
+      <div class="cat-header">${cat.name} (${(cat.items||[]).length}道)</div>
+      <table class="menu-table">
+        <thead><tr><th>菜品</th><th>价格</th><th>辣度</th><th>描述</th></tr></thead><tbody>`;
+    (cat.items||[]).forEach(item => {
+      const spicyMap = {'不辣':'spicy-none','微辣':'spicy-mild','中辣':'spicy-medium','麻辣':'spicy-hot'};
+      html += `<tr>
+        <td><b>${item.name}</b></td>
+        <td class="price-cell">¥${item.price}</td>
+        <td><span class="spicy-tag ${spicyMap[item.spicy]||''}">${item.spicy||'-'}</span></td>
+        <td style="color:#888;">${item.description||''}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+
+  $('menuContainer').innerHTML = html;
+}
+
+function importMenu(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.categories) throw new Error('不是有效的菜单格式（缺少 categories 字段）');
+
+      menuData = data;
+      renderMenu();
+
+      // Optionally upload to backend
+      try {
+        const base = $('apiBaseUrl').value.replace(/\/+$/, '');
+        const res = await fetch(base + '/api/menu/import', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          toast(`菜单已导入并同步到后端（${file.name}）`, 'success');
+        } else {
+          toast('菜单已显示但同步到后端失败（后端可能不支持导入接口），仅前端预览', 'info');
+        }
+      } catch(err) {
+        toast('菜单文件读取成功（仅本地预览，后端暂不支持导入接口）', 'info');
+      }
+    } catch(err) {
+      toast('文件格式错误：' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ==================== Polling ====================
+function restartPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  const sec = parseInt($('refreshInterval').value)||0;
+  if (sec > 0) {
+    pollTimer = setInterval(loadOrders, sec * 1000);
+  }
+}
+
+// ==================== Sound ====================
+function playSound() {
+  if (($('soundEnabled').value||'yes') !== 'yes') return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(880, audioCtx.currentTime);
+    g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.5);
+    setTimeout(() => { o.frequency.setValueAtTime(1100, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime+0.3); }, 200);
+  } catch(_) {}
+}
+
+// Init
+init();
+</script>
+</body>
+</html>

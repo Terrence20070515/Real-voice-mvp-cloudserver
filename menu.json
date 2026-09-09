@@ -1,0 +1,72 @@
+{
+  "restaurant": "川味小馆",
+  "categories": [
+    {
+      "name": "招牌必点",
+      "items": [
+        { "id": "s01", "name": "水煮鱼", "price": 68, "ingredients": ["草鱼", "豆芽", "干辣椒", "花椒", "豆瓣酱"], "allergens": ["鱼类"], "spicy": "麻辣", "description": "活鱼现杀，麻辣鲜香，招牌第一名" },
+        { "id": "s02", "name": "毛血旺", "price": 58, "ingredients": ["鸭血", "毛肚", "午餐肉", "豆芽", "干辣椒", "花椒"], "allergens": ["大豆"], "spicy": "麻辣", "description": "重庆经典，料足味重" },
+        { "id": "s03", "name": "辣子鸡", "price": 48, "ingredients": ["鸡腿肉", "干辣椒", "花椒", "花生", "芝麻"], "allergens": ["花生"], "spicy": "麻辣", "description": "外酥里嫩，辣椒里找鸡" },
+        { "id": "s04", "name": "酸菜鱼", "price": 68, "ingredients": ["草鱼", "酸菜", "泡椒", "花椒"], "allergens": ["鱼类"], "spicy": "中辣", "description": "老坛酸菜，酸辣开胃" },
+        { "id": "s05", "name": "东坡肘子", "price": 78, "ingredients": ["猪肘", "冰糖", "酱油", "八角", "桂皮"], "allergens": ["大豆"], "spicy": "不辣", "description": "文火慢炖四小时，入口即化" }
+      ]
+    },
+    {
+      "name": "凉菜",
+      "items": [
+        { "id": "c01", "name": "凉拌黄瓜", "price": 16, "ingredients": ["黄瓜", "蒜", "醋", "辣椒油"], "allergens": [], "spicy": "微辣", "description": "清爽解腻，夏日必点" },
+        { "id": "c02", "name": "口水鸡", "price": 28, "ingredients": ["鸡腿", "花椒", "辣椒油", "花生碎", "芝麻"], "allergens": ["花生"], "spicy": "麻辣", "description": "川味经典，入口麻香" },
+        { "id": "c03", "name": "夫妻肺片", "price": 32, "ingredients": ["牛腱", "牛舌", "牛肚", "红油", "花椒"], "allergens": [], "spicy": "中辣", "description": "红油卤制，传统名菜" },
+        { "id": "c04", "name": "蒜泥白肉", "price": 26, "ingredients": ["五花肉", "蒜泥", "酱油", "辣椒油"], "allergens": ["大豆"], "spicy": "微辣", "description": "薄如蝉翼，蒜香浓郁" },
+        { "id": "c05", "name": "皮蛋豆腐", "price": 18, "ingredients": ["嫩豆腐", "皮蛋", "葱花", "酱油", "香油"], "allergens": ["鸡蛋", "大豆"], "spicy": "不辣", "description": "清凉爽口，下酒好菜" }
+      ]
+    },
+    {
+      "name": "热菜·川味",
+      "items": [
+        { "id": "h01", "name": "宫保鸡丁", "price": 36, "ingredients": ["鸡胸肉", "花生", "干辣椒", "葱段", "醋", "糖"], "allergens": ["花生"], "spicy": "中辣", "description": "酸甜微辣，国民川菜" },
+        { "id": "h02", "name": "鱼香肉丝", "price": 32, "ingredients": ["猪里脊", "木耳", "胡萝卜", "青椒", "泡椒"], "allergens": [], "spicy": "微辣", "description": "酸甜微辣，米饭杀手" },
+        { "id": "h03", "name": "麻婆豆腐", "price": 26, "ingredients": ["豆腐", "牛肉末", "花椒粉", "豆瓣酱"], "allergens": ["大豆"], "spicy": "麻辣", "description": "麻辣鲜香，下饭神器" },
+        { "id": "h04", "name": "回锅肉", "price": 34, "ingredients": ["五花肉", "蒜苗", "豆瓣酱", "豆豉", "青椒"], "allergens": ["大豆"], "spicy": "中辣", "description": "川菜之首，肥而不腻" },
+        { "id": "h05", "name": "干锅肥肠", "price": 48, "ingredients": ["猪大肠", "土豆", "洋葱", "干辣椒", "花椒"], "allergens": [], "spicy": "麻辣", "description": "干锅烹制，嚼劲十足" },
+        { "id": "h06", "name": "水煮肉片", "price": 42, "ingredients": ["猪里脊", "豆芽", "干辣椒", "花椒"], "allergens": [], "spicy": "麻辣", "description": "麻辣滑嫩，量大实惠" }
+      ]
+    },
+    {
+      "name": "热菜·清淡",
+      "items": [
+        { "id": "m01", "name": "清蒸鲈鱼", "price": 58, "ingredients": ["鲈鱼", "姜", "葱", "蒸鱼豉油"], "allergens": ["鱼类"], "spicy": "不辣", "description": "鲜活清蒸，原汁原味" },
+        { "id": "m02", "name": "糖醋里脊", "price": 36, "ingredients": ["猪里脊", "番茄酱", "醋", "糖", "淀粉"], "allergens": [], "spicy": "不辣", "description": "外酥里嫩，酸甜可口" },
+        { "id": "m03", "name": "西红柿炒鸡蛋", "price": 20, "ingredients": ["西红柿", "鸡蛋", "葱"], "allergens": ["鸡蛋"], "spicy": "不辣", "description": "家常味道，老少皆宜" },
+        { "id": "m04", "name": "干煸四季豆", "price": 22, "ingredients": ["四季豆", "干辣椒", "蒜", "花椒"], "allergens": [], "spicy": "微辣", "description": "香脆可口，素菜下饭" },
+        { "id": "m05", "name": "地三鲜", "price": 24, "ingredients": ["土豆", "茄子", "青椒", "蒜"], "allergens": [], "spicy": "不辣", "description": "东北经典，油香入味" }
+      ]
+    },
+    {
+      "name": "汤类",
+      "items": [
+        { "id": "t01", "name": "酸辣汤", "price": 18, "ingredients": ["豆腐", "鸡蛋", "木耳", "醋", "胡椒"], "allergens": ["鸡蛋", "大豆"], "spicy": "中辣", "description": "酸辣开胃，饭前来一碗" },
+        { "id": "t02", "name": "紫菜蛋花汤", "price": 12, "ingredients": ["紫菜", "鸡蛋", "葱花"], "allergens": ["鸡蛋"], "spicy": "不辣", "description": "清淡鲜美" },
+        { "id": "t03", "name": "冬瓜排骨汤", "price": 28, "ingredients": ["排骨", "冬瓜", "枸杞", "姜"], "allergens": [], "spicy": "不辣", "description": "慢炖两小时，清甜滋补" }
+      ]
+    },
+    {
+      "name": "主食",
+      "items": [
+        { "id": "r01", "name": "米饭", "price": 3, "ingredients": ["大米"], "allergens": [], "spicy": "不辣", "description": "东北五常大米" },
+        { "id": "r02", "name": "蛋炒饭", "price": 15, "ingredients": ["米饭", "鸡蛋", "葱花"], "allergens": ["鸡蛋"], "spicy": "不辣", "description": "简单经典" },
+        { "id": "r03", "name": "担担面", "price": 18, "ingredients": ["面条", "猪肉末", "花生碎", "芝麻酱", "辣椒油"], "allergens": ["花生", "芝麻"], "spicy": "中辣", "description": "四川名小吃，麻辣鲜香" },
+        { "id": "r04", "name": "红糖糍粑", "price": 22, "ingredients": ["糯米", "红糖", "黄豆粉"], "allergens": ["大豆"], "spicy": "不辣", "description": "外酥里糯，甜蜜收尾" }
+      ]
+    },
+    {
+      "name": "饮品",
+      "items": [
+        { "id": "d01", "name": "酸梅汤", "price": 8, "ingredients": ["乌梅", "山楂", "冰糖", "桂花"], "allergens": [], "spicy": "不辣", "description": "冰镇解辣神器" },
+        { "id": "d02", "name": "椰汁", "price": 10, "ingredients": ["椰子"], "allergens": [], "spicy": "不辣", "description": "天然椰汁" },
+        { "id": "d03", "name": "可乐", "price": 5, "ingredients": [], "allergens": [], "spicy": "不辣", "description": "冰爽可乐" },
+        { "id": "d04", "name": "王老吉", "price": 6, "ingredients": ["凉茶"], "allergens": [], "spicy": "不辣", "description": "怕上火喝王老吉" }
+      ]
+    }
+  ]
+}

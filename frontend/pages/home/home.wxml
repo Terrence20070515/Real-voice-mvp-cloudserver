@@ -1,0 +1,104 @@
+<!-- pages/home/home.wxml -->
+<view class="page">
+  <!-- 顶部头图 Banner -->
+  <view class="banner">
+    <view class="banner-bg">
+      <view class="banner-content">
+        <view class="brand-row">
+          <view class="logo">🍜</view>
+          <view class="brand-info">
+            <view class="brand-name">{{restaurantName}}</view>
+            <view class="brand-slogan">{{slogan}}</view>
+          </view>
+        </view>
+        <view class="brand-meta">
+          <view class="meta-item">
+            <text class="meta-icon">🕒</text>
+            <text class="meta-text">{{hours}}</text>
+          </view>
+          <view class="meta-item" bindtap="callRestaurant">
+            <text class="meta-icon">📞</text>
+            <text class="meta-text">{{phone}}</text>
+          </view>
+        </view>
+        <view class="address-row">
+          <text class="meta-icon">📍</text>
+          <text class="meta-text">{{address}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能宫格 -->
+  <view class="function-grid">
+    <view class="grid-item main-grid-item" bindtap="goToChat">
+      <view class="grid-icon grid-icon-primary">🤖</view>
+      <view class="grid-label">AI 点单</view>
+      <view class="grid-desc">智能推荐</view>
+    </view>
+    <view class="grid-item" bindtap="goToMenu">
+      <view class="grid-icon grid-icon-secondary">📋</view>
+      <view class="grid-label">完整菜单</view>
+      <view class="grid-desc">浏览全部</view>
+    </view>
+    <view class="grid-item" bindtap="goToPay">
+      <view class="grid-icon grid-icon-tertiary">💳</view>
+      <view class="grid-label">我的订单</view>
+      <view class="grid-desc">查看/买单</view>
+    </view>
+    <view class="grid-item" bindtap="showAbout">
+      <view class="grid-icon grid-icon-quaternary">ℹ️</view>
+      <view class="grid-label">关于我们</view>
+      <view class="grid-desc">店铺信息</view>
+    </view>
+  </view>
+
+  <!-- 招牌菜推荐 -->
+  <view class="section" wx:if="{{signatureDishes.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">🔥 招牌必点</text>
+      <text class="section-more" bindtap="goToMenu">查看全部 ›</text>
+    </view>
+    <scroll-view scroll-x class="dish-scroll" show-scrollbar="{{false}}">
+      <view class="dish-card" wx:for="{{signatureDishes}}" wx:key="name">
+        <view class="dish-img">
+          {{index === 0 ? '🐟' : index === 1 ? '🥘' : index === 2 ? '🍗' : index === 3 ? '🐟' : '🍖'}}
+        </view>
+        <view class="dish-info">
+          <view class="dish-name-row">
+            <text class="dish-name">{{item.name}}</text>
+            <text class="dish-spicy" wx:if="{{item.spicy !== '不辣'}}">{{item.spicy}}</text>
+          </view>
+          <text class="dish-desc">{{item.description}}</text>
+          <view class="dish-price-row">
+            <text class="dish-price">{{item.price}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 营业提示 -->
+  <view class="business-card">
+    <view class="biz-row">
+      <text class="biz-icon">⚡</text>
+      <view class="biz-content">
+        <text class="biz-title">智能点餐</text>
+        <text class="biz-desc">告诉 AI 你的口味和忌口，自动推荐合适菜品</text>
+      </view>
+    </view>
+    <view class="biz-divider"></view>
+    <view class="biz-row">
+      <text class="biz-icon">🥢</text>
+      <view class="biz-content">
+        <text class="biz-title">正宗川味</text>
+        <text class="biz-desc">32 道经典川菜，从招牌必点到主食饮品</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部信息 -->
+  <view class="footer">
+    <view class="footer-text">© 2026 {{restaurantName}} · AI 智能点餐 MVP</view>
+  </view>
+</view>

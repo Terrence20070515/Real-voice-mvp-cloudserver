@@ -1,0 +1,522 @@
+/* pages/chat/chat.wxss */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #ededed;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ============ 顶部导航栏 ============ */
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  padding: 10rpx 24rpx 10rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(180deg, #d4232c 0%, #b71c1c 100%);
+  color: white;
+  z-index: 100;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+/* 返回+菜单按钮合并左侧 */
+.top-btns {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.back-btn,
+.menu-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 32rpx;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.back-btn:active,
+.menu-btn:active {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.top-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  letter-spacing: 2rpx;
+  margin-left: 20rpx;
+}
+
+/* ============ 聊天滚动区域 ============ */
+/* 高度由 JS 动态计算，通过 inline style 设置 */
+.chat-scroll {
+  padding: 0 30rpx;
+  box-sizing: border-box;
+}
+
+/* 内容区：顶部留白给 fixed 导航栏，底部留白给舒适阅读 */
+.chat-list {
+  padding-bottom: 30rpx;
+}
+
+/* 单条消息 */
+.msg-item {
+  display: flex;
+  margin-bottom: 30rpx;
+  align-items: flex-start;
+}
+
+.msg-item.user {
+  flex-direction: row-reverse;
+}
+
+/* 头像 */
+.avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 8rpx;
+  margin: 0 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  flex-shrink: 0;
+}
+
+.avatar.user {
+  background: #f0f0f0;
+}
+
+.avatar.assistant {
+  background: linear-gradient(135deg, #d4232c, #b71c1c);
+  box-shadow: 0 4rpx 10rpx rgba(212, 35, 44, 0.3);
+}
+
+/* 消息包装器 */
+.msg-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 70%;
+}
+
+.msg-item.user .msg-wrapper {
+  align-items: flex-end;
+}
+
+.msg-item.assistant .msg-wrapper {
+  align-items: flex-start;
+}
+
+/* 气泡 */
+.msg-bubble {
+  padding: 20rpx 24rpx;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  position: relative;
+}
+
+.msg-item.user .msg-bubble {
+  background-color: #95ec69;  /* 微信绿 */
+  color: #000;
+  border-top-right-radius: 4rpx;
+}
+
+.msg-item.assistant .msg-bubble {
+  background-color: #fff;
+  color: #333;
+  border-top-left-radius: 4rpx;
+}
+
+/* 气泡小三角（接近微信效果） */
+.msg-item.user .msg-bubble::before {
+  content: '';
+  position: absolute;
+  top: 24rpx;
+  right: -14rpx;
+  border: 8rpx solid transparent;
+  border-left-color: #95ec69;
+}
+
+.msg-item.assistant .msg-bubble::before {
+  content: '';
+  position: absolute;
+  top: 24rpx;
+  left: -14rpx;
+  border: 8rpx solid transparent;
+  border-right-color: #fff;
+}
+
+.msg-time {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 6rpx;
+  padding: 0 10rpx;
+}
+
+/* 「去结账」入口按钮 */
+.pay-entry-btn {
+  margin-top: 10rpx;
+  padding: 14rpx 24rpx;
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: #fff;
+  font-size: 26rpx;
+  border-radius: 12rpx;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 4rpx 10rpx rgba(255, 152, 0, 0.3);
+}
+
+.pay-entry-btn:active {
+  transform: scale(0.96);
+}
+
+/* 正在输入动画 */
+.msg-bubble.typing {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 24rpx 28rpx;
+}
+
+.typing-dot {
+  width: 12rpx;
+  height: 12rpx;
+  background: #bbb;
+  border-radius: 50%;
+  animation: typingBounce 1.2s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-10rpx); opacity: 1; }
+}
+
+.bottom-anchor {
+  height: 1rpx;
+}
+
+/* ============ 底部输入栏（微信风格）============ */
+.input-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #f7f7f7;
+  border-top: 1rpx solid #dcdcdc;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 200;
+  transition: padding-bottom 0.2s ease-out;
+}
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  padding: 16rpx 20rpx;
+  gap: 14rpx;
+  min-height: 100rpx;
+}
+
+/* 圆形图标按钮（表情 / + 号）*/
+.icon-btn {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  background: #fff;
+  border-radius: 8rpx;
+  margin-bottom: 4rpx;
+  user-select: none;
+}
+
+.icon-btn:active {
+  background: #ebebeb;
+}
+
+/* 输入框容器（微信白色方块）*/
+.input-box {
+  flex: 1;
+  background: #fff;
+  border-radius: 8rpx;
+  padding: 14rpx 20rpx;
+  min-height: 72rpx;
+  max-height: 220rpx;
+  overflow-y: auto;
+  margin-bottom: 4rpx;
+  box-sizing: border-box;
+}
+
+/* textarea 自适应高度 */
+.input-textarea {
+  width: 100%;
+  min-height: 44rpx;
+  max-height: 180rpx;
+  font-size: 32rpx;
+  line-height: 1.4;
+  color: #333;
+  word-break: break-all;
+}
+
+.input-placeholder {
+  color: #9b9b9b;
+  font-size: 32rpx;
+}
+
+/* 发送按钮（微信绿）*/
+.send-btn {
+  background: #07c160;
+  color: #fff;
+  padding: 0 28rpx;
+  height: 72rpx;
+  border-radius: 8rpx;
+  font-size: 30rpx;
+  margin-bottom: 4rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110rpx;
+}
+
+.send-btn.disabled {
+  background: #c8c8c8;
+  color: #fff;
+}
+
+.send-btn:active {
+  background: #06ad56;
+}
+
+/* ============ 扩展面板（+号快捷指令）============ */
+.extra-panel {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  background: #f7f7f7;
+  z-index: 150;
+  border-top: 1rpx solid #dcdcdc;
+  /* 默认隐藏：高度0 + overflow hidden */
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+
+.extra-panel.panel-show {
+  max-height: 480rpx;
+}
+
+.panel-scroll {
+  height: 100%;
+}
+
+/* 快捷指令面板 */
+.quick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 30rpx 20rpx;
+  gap: 30rpx 0;
+}
+
+.quick-item {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.quick-item:active .quick-icon {
+  background: #ebebeb;
+}
+
+.quick-icon {
+  width: 110rpx;
+  height: 110rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
+}
+
+.quick-icon-danger {
+  background: #ffebee;
+}
+
+.quick-text {
+  font-size: 22rpx;
+  color: #666;
+  text-align: center;
+  line-height: 1.3;
+  max-width: 140rpx;
+  word-break: break-all;
+}
+
+/* ============ 菜单浮窗 ============ */
+.menu-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1900;
+}
+
+.menu-popup {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 75vh;
+  background: #fff;
+  border-radius: 30rpx 30rpx 0 0;
+  z-index: 1901;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.popup-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #d4232c;
+}
+
+.close-btn {
+  font-size: 40rpx;
+  color: #999;
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-scroll {
+  flex: 1;
+  height: 0;
+  padding: 20rpx 30rpx;
+  box-sizing: border-box;
+}
+
+.menu-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx;
+}
+
+.state-text {
+  font-size: 26rpx;
+  color: #888;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #eee;
+  border-top: 4rpx solid #d4232c;
+  border-radius: 50%;
+  margin-bottom: 20rpx;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.category-section {
+  margin-bottom: 30rpx;
+}
+
+.category-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #d4232c;
+  margin-bottom: 15rpx;
+  padding-left: 20rpx;
+  border-left: 6rpx solid #d4232c;
+}
+
+.menu-card {
+  background: #fafafa;
+  padding: 22rpx;
+  border-radius: 12rpx;
+  margin-bottom: 15rpx;
+}
+
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10rpx;
+}
+
+.dish-name-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.dish-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.dish-spicy {
+  font-size: 20rpx;
+  color: #fff;
+  background: #ff5722;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  margin-left: 12rpx;
+}
+
+.dish-price {
+  font-size: 30rpx;
+  color: #d4232c;
+  font-weight: bold;
+}
+
+.dish-desc {
+  font-size: 24rpx;
+  color: #666;
+  display: block;
+  line-height: 1.5;
+}

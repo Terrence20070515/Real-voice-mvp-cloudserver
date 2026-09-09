@@ -1,0 +1,19 @@
+{
+  "cloud": true,
+  "pages": [
+    "pages/home/home",
+    "pages/chat/chat",
+    "pages/menu/menu",
+    "pages/pay/pay"
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#d4232c",
+    "navigationBarTitleText": "川味小馆",
+    "backgroundColor": "#f5f5f5",
+    "backgroundTextStyle": "dark"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

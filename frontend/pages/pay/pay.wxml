@@ -1,0 +1,90 @@
+<!-- pages/pay/pay.wxml -->
+<view class="page">
+  <!-- 顶部导航 -->
+  <view class="top-bar">
+    <view class="back-btn" bindtap="backToChat">‹ 返回</view>
+    <view class="top-title">买单</view>
+    <view class="placeholder"></view>
+  </view>
+
+  <!-- 支付成功遮罩 -->
+  <view class="pay-success-mask" wx:if="{{paySuccess}}">
+    <view class="success-icon">✓</view>
+    <view class="success-text">支付成功</view>
+  </view>
+
+  <!-- 内容区 -->
+  <scroll-view scroll-y class="content-scroll">
+    <!-- 加载中 -->
+    <view class="state-view" wx:if="{{loading}}">
+      <view class="loading-spinner"></view>
+      <text>正在查询订单...</text>
+    </view>
+
+    <!-- 没有订单 -->
+    <view class="state-view" wx:elif="{{orders.length === 0}}">
+      <view class="empty-icon">🛒</view>
+      <text class="empty-text">还没有订单</text>
+      <text class="empty-tip">去 AI 点餐页面下个单试试</text>
+      <view class="continue-btn" bindtap="continueOrder">去点餐</view>
+    </view>
+
+    <!-- 订单列表 -->
+    <block wx:else>
+      <view class="section-title">订单列表（{{orders.length}}）</view>
+      <block wx:for="{{orders}}" wx:key="order_id">
+        <view class="order-card {{item.paid ? 'paid' : 'unpaid'}}">
+          <!-- 订单头 -->
+          <view class="order-header">
+            <view class="order-id">订单号 {{item.order_id}}</view>
+            <view class="order-status {{item.paid ? 'status-paid' : 'status-unpaid'}}">
+              {{item.paid ? '✓ 已支付' : '待支付'}}
+            </view>
+          </view>
+
+          <!-- 订单详情 -->
+          <view class="order-customer" wx:if="{{item.customer}}">
+            <text class="customer-label">客户/桌号：</text>
+            <text class="customer-value">{{item.customer}}</text>
+          </view>
+
+          <!-- 菜品列表 -->
+          <view class="dish-list">
+            <view wx:for="{{item.items}}" wx:for-item="dish" wx:key="dish_id" class="dish-row">
+              <view class="dish-name-row">
+                <text class="dish-name">{{dish.dish_name}}</text>
+                <text class="dish-qty">×{{dish.quantity}}</text>
+              </view>
+              <text class="dish-subtotal">¥{{dish.subtotal}}</text>
+            </view>
+          </view>
+
+          <!-- 总价 -->
+          <view class="order-total-row">
+            <text class="total-label">合计</text>
+            <text class="total-price">¥{{item.total}}</text>
+          </view>
+
+          <!-- 支付按钮 -->
+          <view
+            wx:if="{{!item.paid}}"
+            class="pay-btn {{payingOrderId === item.order_id ? 'paying' : ''}}"
+            data-id="{{item.order_id}}"
+            bindtap="payOrder"
+          >
+            {{payingOrderId === item.order_id ? '支付中...' : '立即支付 ¥' + item.total}}
+          </view>
+          <view wx:else class="paid-stamp">已支付 · 感谢惠顾</view>
+        </view>
+      </block>
+
+      <!-- 底部说明 -->
+      <view class="footer-tip">
+        <text>💡 这是 MVP 演示，支付为模拟，不会真实扣款</text>
+      </view>
+
+      <!-- 清台 / 换桌（顾客已离席，开启下一轮干净对话）-->
+      <view class="clear-table-btn" bindtap="clearTable">🧹 清台 / 换桌（顾客已离席）</view>
+    </block>
+  </scroll-view>
+</view>

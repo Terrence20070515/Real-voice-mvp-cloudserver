@@ -1,0 +1,162 @@
+<!-- pages/chat/chat.wxml -->
+<view class="page-container">
+  <!-- 顶部导航栏（动态状态栏高度） -->
+  <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="top-btns">
+      <view class="back-btn" bindtap="goBack">‹</view>
+      <view class="menu-btn" bindtap="toggleMenu">📋</view>
+    </view>
+    <view class="top-title">AI 点餐助手</view>
+  </view>
+
+  <!-- 聊天消息区域（动态调整底部留白，避免被面板/输入栏遮挡） -->
+  <scroll-view
+    class="chat-scroll"
+    style="height: {{scrollHeight}}px;"
+    scroll-y
+    scroll-into-view="{{scrollToView}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+    bindtap="onChatAreaTap"
+  >
+    <view class="chat-list" style="padding-top: {{navBarHeight}}px;">
+      <block wx:for="{{messages}}" wx:key="id">
+        <view id="{{item.id}}" class="msg-item {{item.role}}">
+          <view class="avatar {{item.role}}">
+            {{item.role === 'user' ? '🧑' : '🤖'}}
+          </view>
+          <view class="msg-wrapper">
+            <view class="msg-bubble">{{item.content}}</view>
+            <!-- AI 回复里如果提到订单号，显示「去结账」按钮 -->
+            <view
+              wx:if="{{item.role === 'assistant' && item.hasOrder}}"
+              class="pay-entry-btn"
+              catchtap="goToPay"
+            >💳 去结账 ›</view>
+            <text class="msg-time">{{item.time}}</text>
+          </view>
+        </view>
+      </block>
+
+      <!-- AI 正在输入 -->
+      <view class="msg-item assistant" wx:if="{{isLoading}}">
+        <view class="avatar assistant">🤖</view>
+        <view class="msg-wrapper">
+          <view class="msg-bubble typing">
+            <view class="typing-dot"></view>
+            <view class="typing-dot"></view>
+            <view class="typing-dot"></view>
+          </view>
+        </view>
+      </view>
+
+      <view id="last-msg" class="bottom-anchor"></view>
+    </view>
+  </scroll-view>
+
+  <!-- 「+」面板：快捷指令（fixed 定位，紧贴输入栏上方） -->
+  <view class="extra-panel {{showMorePanel ? 'panel-show' : ''}}" style="bottom: {{inputBarHeight}}px;">
+    <scroll-view scroll-y class="panel-scroll">
+      <view class="quick-grid">
+        <view
+          wx:for="{{quickCommands}}"
+          wx:key="text"
+          class="quick-item"
+          data-text="{{item.text}}"
+          bindtap="sendQuickCommand"
+        >
+          <view class="quick-icon">{{item.icon}}</view>
+          <text class="quick-text">{{item.text}}</text>
+        </view>
+        <!-- 清空对话（同桌重开，保留订单）-->
+        <view class="quick-item" bindtap="clearChat">
+          <view class="quick-icon">🗑️</view>
+          <text class="quick-text">清空对话</text>
+        </view>
+
+        <!-- 清台 / 换桌（顾客已离席，彻底重置）-->
+        <view class="quick-item" bindtap="clearTable">
+          <view class="quick-icon quick-icon-danger">🧹</view>
+          <text class="quick-text">清台 / 换桌</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 底部输入栏（微信风格） -->
+  <view class="input-bar" style="padding-bottom: {{keyboardHeight}}px;">
+    <view class="input-row" id="inputRow">
+      <!-- 输入框区域：textarea 支持多行 + 自动高度 -->
+      <view class="input-box">
+        <textarea
+          class="input-textarea"
+          placeholder="发消息..."
+          placeholder-class="input-placeholder"
+          value="{{inputValue}}"
+          bindinput="onInput"
+          bindfocus="onInputFocus"
+          bindblur="onInputBlur"
+          confirm-type="send"
+          bindconfirm="sendMsg"
+          show-confirm-bar="{{false}}"
+          adjust-position="{{false}}"
+          cursor-spacing="20"
+          auto-height
+          hold-keyboard
+          disable-default-padding
+        />
+      </view>
+
+      <!-- 发送按钮 / + 号按钮：输入文字时才显示发送 -->
+      <view
+        wx:if="{{inputValue.length > 0}}"
+        class="send-btn {{isLoading ? 'disabled' : ''}}"
+        bindtap="sendMsg"
+      >{{isLoading ? '...' : '发送'}}</view>
+      <view wx:else class="icon-btn" bindtap="toggleMorePanel">
+        {{showMorePanel ? '×' : '+'}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 菜单浮窗遮罩 -->
+  <view class="menu-mask" wx:if="{{showMenu}}" catchtap="closeMenu"></view>
+
+  <!-- 菜单浮窗内容 -->
+  <view class="menu-popup" wx:if="{{showMenu}}">
+    <view class="popup-header">
+      <text class="popup-title">今日菜单</text>
+      <view class="close-btn" bindtap="closeMenu">✕</view>
+    </view>
+
+    <view class="menu-state" wx:if="{{menuLoading}}">
+      <view class="loading-spinner"></view>
+      <text class="state-text">正在加载菜单...</text>
+    </view>
+
+    <view class="menu-state" wx:elif="{{menuData.length === 0}}">
+      <text class="state-text">暂无菜品数据</text>
+    </view>
+
+    <scroll-view scroll-y class="menu-scroll" wx:else>
+      <block wx:for="{{menuData}}" wx:key="name">
+        <view class="category-section">
+          <view class="category-title">{{item.name}}</view>
+          <block wx:for="{{item.items}}" wx:for-item="dish" wx:key="name">
+            <view class="menu-card">
+              <view class="card-row">
+                <view class="dish-name-wrap">
+                  <text class="dish-name">{{dish.name}}</text>
+                  <text class="dish-spicy" wx:if="{{dish.spicy !== '不辣'}}">{{dish.spicy}}</text>
+                </view>
+                <text class="dish-price">{{dish.price}}</text>
+              </view>
+              <text class="dish-desc">{{dish.description}}</text>
+            </view>
+          </block>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+</view>

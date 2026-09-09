@@ -1,0 +1,309 @@
+/* pages/pay/pay.wxss */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+/* 顶部导航 */
+.top-bar {
+  background: linear-gradient(135deg, #d4232c, #b71c1c);
+  padding: 60rpx 30rpx 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+}
+
+.back-btn,
+.placeholder {
+  width: 100rpx;
+  font-size: 28rpx;
+}
+
+.top-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  letter-spacing: 2rpx;
+}
+
+/* 内容区 */
+.content-scroll {
+  flex: 1;
+  padding: 30rpx;
+  box-sizing: border-box;
+}
+
+/* 状态视图 */
+.state-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 60rpx;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.empty-tip {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 40rpx;
+}
+
+.continue-btn {
+  padding: 20rpx 60rpx;
+  background: linear-gradient(135deg, #d4232c, #b71c1c);
+  color: #fff;
+  font-size: 30rpx;
+  border-radius: 40rpx;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4px solid #eee;
+  border-top: 4px solid #d4232c;
+  border-radius: 50%;
+  margin-bottom: 20rpx;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 区段标题 */
+.section-title {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 20rpx;
+  padding-left: 10rpx;
+}
+
+/* 订单卡片 */
+.order-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+.order-card.paid {
+  opacity: 0.85;
+}
+
+/* 订单头 */
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1px dashed #eee;
+}
+
+.order-id {
+  font-size: 26rpx;
+  color: #999;
+  font-family: monospace;
+}
+
+.order-status {
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+}
+
+.status-unpaid {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.status-paid {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* 客户信息 */
+.order-customer {
+  margin-bottom: 16rpx;
+  font-size: 26rpx;
+}
+
+.customer-label {
+  color: #999;
+}
+
+.customer-value {
+  color: #333;
+  font-weight: 600;
+}
+
+/* 菜品列表 */
+.dish-list {
+  margin: 10rpx 0;
+}
+
+.dish-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.dish-name-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.dish-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.dish-qty {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.dish-subtotal {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+/* 总价 */
+.order-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 2px solid #f5f5f5;
+}
+
+.total-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.total-price {
+  font-size: 40rpx;
+  color: #d4232c;
+  font-weight: bold;
+}
+
+/* 支付按钮 */
+.pay-btn {
+  margin-top: 24rpx;
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: #fff;
+  text-align: center;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  box-shadow: 0 4rpx 10px rgba(255, 152, 0, 0.3);
+}
+
+.pay-btn.paying {
+  background: #ccc;
+  box-shadow: none;
+}
+
+.pay-btn:active {
+  transform: scale(0.97);
+}
+
+.paid-stamp {
+  margin-top: 24rpx;
+  text-align: center;
+  padding: 16rpx;
+  color: #2e7d32;
+  font-size: 26rpx;
+  background: #f1f8e9;
+  border-radius: 8rpx;
+}
+
+/* 支付成功遮罩 */
+.pay-success-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-icon {
+  width: 140rpx;
+  height: 140rpx;
+  background: #4caf50;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80rpx;
+  font-weight: bold;
+  margin-bottom: 30rpx;
+  animation: bounceIn 0.5s ease-out;
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.success-text {
+  font-size: 36rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* 底部说明 */
+.footer-tip {
+  margin-top: 30rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: #bbb;
+  padding: 20rpx;
+}
+
+/* 清台 / 换桌按钮 */
+.clear-table-btn {
+  margin-top: 20rpx;
+  margin-bottom: 40rpx;
+  background: #fff;
+  color: #d4232c;
+  text-align: center;
+  padding: 28rpx;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  border: 2rpx solid #ffcdd2;
+  box-shadow: 0 2rpx 8rpx rgba(212, 35, 44, 0.08);
+}
+
+.clear-table-btn:active {
+  background: #ffebee;
+}
