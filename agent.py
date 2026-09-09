@@ -414,6 +414,8 @@ class DiningAgent:
             try:
                 result = func(**args)
             except Exception as e:
+                # 打到 stdout 便于 docker logs 排查（工具异常被吞的根因）
+                print(f"[TOOL_ERR] {func_name}: {type(e).__name__}: {e}", flush=True)
                 result = json.dumps({
                     "error": f"工具 {func_name} 执行失败: {type(e).__name__}: {str(e)[:100]}",
                     "arguments": args,
