@@ -576,7 +576,28 @@ let menuData = null;
 
 async function loadMenu() {
   try {
-    menuData = await api('/api/menu');
+    const raw = await api('/api/menu');
+    // 兼容两种格式：后端 /api/menu 返回扁平数组 / 导入的是嵌套 menu.json
+    if (Array.isArray(raw)) {
+      const catMap = {};
+      const order = ['招牌必点','凉菜','热菜·川味','热菜·清淡','汤类','主食','饮品'];
+      raw.forEach(item => {
+        const cn = item['分类'] || item['category'] || '其他';
+        if (!catMap[cn]) catMap[cn] = { name: cn, items: [] };
+        catMap[cn].items.push({
+          name: item['菜品'] || item['name'],
+          price: parseInt(String(item['价格'] || item['price'] || '0').replace('¥','')) || 0,
+          spicy: item['辣度'] || item['spicy'] || '不辣',
+          description: item['描述'] || item['description'] || ''
+        });
+      });
+      // 按固定顺序排列分类
+      const cats = order.filter(n => catMap[n]).map(n => catMap[n])
+        .concat(Object.keys(catMap).filter(n => !order.includes(n)).map(n => catMap[n]));
+      menuData = { restaurant: '川味小馆', categories: cats };
+    } else {
+      menuData = raw;
+    }
     renderMenu();
   } catch(e) {
     $('menuContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">&#x1F37D;</div><div class="empty-text">加载失败：${e.message}<br><br>请确保后端正在运行</div></div>`;
