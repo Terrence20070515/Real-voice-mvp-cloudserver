@@ -1,0 +1,12 @@
+.env
+.git/
+frontend/
+__pycache__/
+*.pyc
+data/orders.json
+data/sessions/
+data/conversations.json
+Dockerfile
+.dockerignore
+.gitignore
+README.md
