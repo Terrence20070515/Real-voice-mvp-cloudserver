@@ -5,18 +5,36 @@ from typing import Optional
 from config import MENU_FILE, ORDERS_FILE
 
 
-def _load_json(path: str) -> dict:
+def _load_json(path: str):
+    """读 JSON。文件不存在或损坏时返回空默认值，绝不抛异常。
+
+    历史教训：orders.json 曾因并发写/写入中断产生半文件，
+    导致 json.load 抛 JSONDecodeError → create_order 整个挂掉。
+    现在损坏时自动降级返回空，服务不中断，日志告警。
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    default = [] if "order" in path else {}
     if not os.path.exists(path):
-        return {} if "order" not in path else []
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        return default
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, ValueError):
+        print(f"[STORAGE_WARN] {path} 损坏，已重置为默认值", flush=True)
+        return default
 
 
 def _save_json(path: str, data) -> None:
+    """原子写：先写 .tmp 再 rename，避免写入中断产生半文件。
+
+    os.replace 在同一文件系统内是原子操作，
+    要么完整生效要么不生效，不会留半写状态。
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 
 # ─── 工具定义（给 LLM 的 Function Calling schema）───
