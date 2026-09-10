@@ -14,7 +14,7 @@ import requests
 
 from agent import DiningAgent
 from tools import query_menu_list, list_orders, pay_order, clear_orders, delete_legacy_orders, checkout_session
-from config import MENU_FILE
+from config import MENU_FILE, TRAINING_EXAMPLES_FILE
 
 app = FastAPI(title="Real Voice MVP", version="1.0.14")
 agent = DiningAgent()
@@ -217,13 +217,131 @@ class MenuImportRequest(BaseModel):
 
 @app.post("/api/menu/import")
 def api_import_menu(req: MenuImportRequest):
-    """导入新菜单，覆盖原有菜单文件（写入数据卷，持久化）"""
+    """导入新菜单，覆盖原有菜单文件（写入数据卷，持久化）。
+
+    菜单差异 >20%（Jaccard 距离）时自动后台重新生成训练示例，
+    保证 training_examples 和当前菜单同步，AI 不被旧示例带偏。
+    """
     try:
+        # 读旧菜单算差异
+        old_menu = {}
+        if os.path.exists(MENU_FILE):
+            try:
+                with open(MENU_FILE, encoding="utf-8") as f:
+                    old_menu = json.load(f)
+            except Exception:
+                old_menu = {}
+        new_menu = req.model_dump(exclude_none=True)
         with open(MENU_FILE, "w", encoding="utf-8") as f:
-            json.dump(req.model_dump(exclude_none=True), f, ensure_ascii=False, indent=2)
-        return {"status": "ok", "message": f"菜单已更新，共 {sum(len(c['items']) for c in req.categories)} 道菜"}
+            json.dump(new_menu, f, ensure_ascii=False, indent=2)
+
+        diff = _menu_diff_ratio(old_menu, new_menu)
+        msg = f"菜单已更新，共 {sum(len(c['items']) for c in req.categories)} 道菜"
+        # 差异 >20% → 后台线程重生成训练示例（不阻塞响应）
+        if diff > 0.2:
+            threading.Thread(
+                target=_regenerate_training_examples, args=(new_menu,), daemon=True
+            ).start()
+            msg += f"（菜单变化 {diff:.0%}，正在后台重新生成训练示例，约 2 分钟后生效）"
+        return {"status": "ok", "message": msg, "menu_diff": round(diff, 3)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"写入失败: {e}")
+
+
+def _menu_diff_ratio(old_menu: dict, new_menu: dict) -> float:
+    """新旧菜单菜品差异率（Jaccard 距离）：1 - |交集| / |并集|"""
+    def dish_names(m: dict) -> set:
+        names = set()
+        for c in (m.get("categories") or []):
+            for it in (c.get("items") or []):
+                if it.get("name"):
+                    names.add(it["name"])
+        return names
+    old_n, new_n = dish_names(old_menu), dish_names(new_menu)
+    union = old_n | new_n
+    if not union:
+        return 0.0
+    return 1 - len(old_n & new_n) / len(union)
+
+
+def _regenerate_training_examples(new_menu: dict) -> None:
+    """后台：基于新菜单用 LLM 重生成 training_examples.json。
+
+    6 大场景 × 12 条 = 72 条，reply 里引用的菜名/价格全部来自新菜单。
+    原子写落库，失败不影响服务（旧示例继续用，有版本警告兜底）。
+    """
+    try:
+        cfg = get_llm_config()
+        client = OpenAI(api_key=cfg["api_key"], base_url=cfg["base_url"])
+
+        # 菜品清单文本（含价格/辣度/过敏原，供生成引用）
+        dish_lines = []
+        for c in new_menu.get("categories", []):
+            for it in c.get("items", []):
+                allergens = "、".join(it.get("allergens", [])) or "无"
+                dish_lines.append(
+                    f"{it.get('name','?')} ¥{it.get('price',0)}"
+                    f"（{it.get('spicy','不辣')}，过敏原:{allergens}）"
+                )
+        menu_text = "\n".join(dish_lines)
+
+        scenarios = [
+            "欢迎与寒暄（含对话中途寒暄不重置话题）、询问推荐（喜辣/不辣/有忌口各一条）",
+            "推荐菜品（含避开过敏原的示例）、询问招牌菜、询问汤类和主食",
+            "一句话下单（含人数+菜品+口味全信息）、只说菜名直接下单",
+            "加单（再来一份）、换菜（A换成B）、退菜（不要了）",
+            "查订单（我点了什么）、问总价、问几人份量够不够",
+            "结账（去结账/买单）、催菜、要包间、感谢结束",
+        ]
+
+        all_examples = []
+        for i, scene in enumerate(scenarios):
+            prompt = f"""基于以下菜单，生成本批点餐场景示例问答。
+
+菜单（菜名和价格必须从这里引用，不得编造）：
+{menu_text}
+
+本批场景：{scene}
+
+要求：
+- 生成 12 条示例，每条格式 {{"user":"顾客的话","reply":"助手回复"}}
+- reply 里引用的菜名和价格必须来自上面菜单，菜不在菜单里就绝对不能出现
+- 语气简洁专业，每次回复 3-5 行以内，不啰嗦，可用 1️⃣2️⃣ 编号或适度 emoji
+- 下单/加单成功要报订单号（用 ORD1001、ORD1002 这类占位）和合计金额（按菜单价格算对）
+- 过敏相关示例要体现"识别过敏原→避开"的逻辑
+- 只输出 JSON 数组，不要 markdown 代码块，不要解释"""
+
+            resp = client.chat.completions.create(
+                model=cfg["model"],
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=3000,
+            )
+            content = resp.choices[0].message.content.strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            batch = json.loads(content)
+            if isinstance(batch, list):
+                all_examples.extend(
+                    {"user": b.get("user", ""), "reply": b.get("reply", "")}
+                    for b in batch if b.get("user") and b.get("reply")
+                )
+            print(f"[TRAINING] 批次{i+1}/6 完成，累计 {len(all_examples)} 条", flush=True)
+
+        if not all_examples:
+            print("[TRAINING] 生成结果为空，保留旧示例", flush=True)
+            return
+        # 原子写落库
+        os.makedirs(os.path.dirname(TRAINING_EXAMPLES_FILE), exist_ok=True)
+        tmp = TRAINING_EXAMPLES_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(all_examples, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, TRAINING_EXAMPLES_FILE)
+        print(f"[TRAINING] 重生成完成: {len(all_examples)} 条，已落库", flush=True)
+    except Exception as e:
+        print(f"[TRAINING] 重生成失败（保留旧示例）: {e}", flush=True)
 
 
 # ─── 菜单智能解析（文本/图片 → 结构化菜单）───
