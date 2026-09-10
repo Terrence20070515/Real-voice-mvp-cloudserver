@@ -177,6 +177,45 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "replace_item",
+            "description": "换菜：把订单里的一道菜换成另一道菜（顾客说「把A换成B」「A不要了换C」时必须用这个，绝不能用 add_to_order 加新菜凑数）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "已有订单的编号，如 ORD0001",
+                    },
+                    "old_dish_name": {"type": "string", "description": "要换掉的菜品名称"},
+                    "new_dish_name": {"type": "string", "description": "换成的新菜品名称"},
+                    "quantity": {"type": "integer", "description": "新菜数量，默认1"},
+                },
+                "required": ["order_id", "old_dish_name", "new_dish_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_item",
+            "description": "退菜：从订单中删除一道菜（顾客说「X不要了」「退掉X」时使用）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "已有订单的编号，如 ORD0001",
+                    },
+                    "dish_name": {"type": "string", "description": "要退掉的菜品名称"},
+                    "quantity": {"type": "integer", "description": "退几份，不传则整项删除"},
+                },
+                "required": ["order_id", "dish_name"],
+            },
+        },
+    },
 ]
 
 
@@ -272,8 +311,8 @@ def create_order(items=None, customer_name: str = "", session_id: str = "") -> s
     menu = _load_json(MENU_FILE)
     # 菜名→菜品映射
     dish_map = {}
-    for cat in menu["categories"]:
-        for item in cat["items"]:
+    for cat in menu.get("categories", []):
+        for item in cat.get("items", []):
             dish_map[item["name"]] = item
 
     orders = _load_json(ORDERS_FILE)
@@ -391,6 +430,125 @@ def add_to_order(order_id: str, items: list[dict]) -> str:
         return f"以下菜品有问题：{'；'.join(errors)}。请核对后再加单。"
 
     target["items"].extend(new_items)
+    target["total"] = sum(i["subtotal"] for i in target["items"])
+
+    _save_json(ORDERS_FILE, orders)
+    return json.dumps(target, ensure_ascii=False, indent=2)
+
+
+def _find_dish(dish_map: dict, name: str):
+    """精确匹配 → 模糊匹配，返回菜品或 None"""
+    dish = dish_map.get(name)
+    if dish:
+        return dish
+    for dname, ditem in dish_map.items():
+        if name in dname or dname in name:
+            return ditem
+    return None
+
+
+def _find_order(orders: list, order_id: str):
+    for o in orders:
+        if o.get("order_id") == order_id:
+            return o
+    return None
+
+
+def replace_item(order_id: str, old_dish_name: str, new_dish_name: str, quantity: int = 1) -> str:
+    """换菜：删除旧菜 + 加入新菜，重算合计（一次原子操作，不会越换越多）"""
+    menu = _load_json(MENU_FILE)
+    dish_map = {}
+    for cat in menu.get("categories", []):
+        for item in cat["items"]:
+            dish_map[item["name"]] = item
+
+    orders = _load_json(ORDERS_FILE)
+    if not isinstance(orders, list):
+        orders = []
+    target = _find_order(orders, order_id)
+    if not target:
+        return f"未找到订单 {order_id}。请先确认订单号。"
+
+    if target.get("paid"):
+        return f"订单 {order_id} 已支付，无法换菜。"
+
+    old_dish = _find_dish(dish_map, old_dish_name)
+    new_dish = _find_dish(dish_map, new_dish_name)
+    if not new_dish:
+        return f"新菜品「{new_dish_name}」未在菜单中找到，请核对。"
+
+    # 定位旧菜（精确→模糊）
+    old_entry = None
+    for ei in target["items"]:
+        if ei.get("dish_name") == old_dish_name:
+            old_entry = ei
+            break
+    if not old_entry and old_dish:
+        for ei in target["items"]:
+            if old_dish["name"] in ei.get("dish_name", "") or ei.get("dish_name", "") in old_dish["name"]:
+                old_entry = ei
+                break
+    if not old_entry:
+        return f"订单 {order_id} 中没有「{old_dish_name}」，当前菜品：{'、'.join(i['dish_name'] for i in target['items'])}。请核对。"
+
+    if not isinstance(quantity, int) or quantity <= 0:
+        quantity = 1
+
+    # 删旧菜
+    target["items"].remove(old_entry)
+    # 加新菜（同名合并）
+    existing = None
+    for ei in target["items"]:
+        if ei.get("dish_name") == new_dish["name"]:
+            existing = ei
+            break
+    if existing:
+        existing["quantity"] += quantity
+        existing["subtotal"] = new_dish["price"] * existing["quantity"]
+    else:
+        target["items"].append({
+            "dish_id": new_dish["id"],
+            "dish_name": new_dish["name"],
+            "quantity": quantity,
+            "unit_price": new_dish["price"],
+            "subtotal": new_dish["price"] * quantity,
+        })
+    target["total"] = sum(i["subtotal"] for i in target["items"])
+
+    _save_json(ORDERS_FILE, orders)
+    return json.dumps(target, ensure_ascii=False, indent=2)
+
+
+def delete_item(order_id: str, dish_name: str, quantity: int = None) -> str:
+    """退菜：删除订单中的一道菜（quantity 不传整项删，传了减数量）"""
+    orders = _load_json(ORDERS_FILE)
+    if not isinstance(orders, list):
+        orders = []
+    target = _find_order(orders, order_id)
+    if not target:
+        return f"未找到订单 {order_id}。请先确认订单号。"
+
+    if target.get("paid"):
+        return f"订单 {order_id} 已支付，无法退菜。"
+
+    old_entry = None
+    for ei in target["items"]:
+        if ei.get("dish_name") == dish_name:
+            old_entry = ei
+            break
+    if not old_entry:
+        for ei in target["items"]:
+            if dish_name in ei.get("dish_name", "") or ei.get("dish_name", "") in dish_name:
+                old_entry = ei
+                break
+    if not old_entry:
+        return f"订单 {order_id} 中没有「{dish_name}」，当前菜品：{'、'.join(i['dish_name'] for i in target['items'])}。请核对。"
+
+    if quantity is not None and isinstance(quantity, int) and 0 < quantity < old_entry["quantity"]:
+        old_entry["quantity"] -= quantity
+        old_entry["subtotal"] = old_entry["unit_price"] * old_entry["quantity"]
+    else:
+        target["items"].remove(old_entry)
     target["total"] = sum(i["subtotal"] for i in target["items"])
 
     _save_json(ORDERS_FILE, orders)
@@ -520,6 +678,8 @@ TOOL_MAP = {
     "recommend_dishes": recommend_dishes,
     "create_order": create_order,
     "add_to_order": add_to_order,
+    "replace_item": replace_item,
+    "delete_item": delete_item,
     "trace_ingredient": trace_ingredient,
     "checkout_session": checkout_session,
 }

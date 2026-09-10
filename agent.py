@@ -17,6 +17,7 @@ SYSTEM_PROMPT = """你是川味小馆的AI点餐助手，负责协助顾客完�
 
 ## 核心能力
 - 所有菜品信息必须通过工具 `get_menu` 或 `recommend_dishes` 查询，不得自行编造菜品、价格或描述
+- 过敏原信息只能引用工具返回中的「过敏原」字段，不得自行推测或添加菜单里没写的过敏原（如芝麻、麸质等），不确定就如实说"菜单未标注"
 - 下单必须通过工具完成，口头确认不算下单
 - 回答以工具返回的数据为准
 - 不知道的事情坦诚告知，不编造
@@ -37,8 +38,8 @@ SYSTEM_PROMPT = """你是川味小馆的AI点餐助手，负责协助顾客完�
 ### 禁止 2：用错下单工具
 - **首次点菜**（本 session 还没有订单）→ 用 `create_order`
 - **加菜/追加**（已经有订单，顾客说"再来XX"、"加一份XX"）→ **必须**用 `add_to_order`，传已有 order_id
-- **换菜**（顾客说"把A换成B"、"A不要了换C"）→ 用 `add_to_order` 加新菜到同一 order_id，告知原菜已取消。**不得**用 create_order 新建订单
-- **退菜**（顾客说"这个不要了"）→ 告知已取消，不得新建订单
+- **换菜**（顾客说"把A换成B"、"A不要了换C"）→ **必须**用 `replace_item`，一步完成删旧加新，绝不能用 add_to_order 加新菜凑数
+- **退菜**（顾客说"这个不要了"、"退掉X"）→ **必须**用 `delete_item` 执行，不得只口头告知
 - **绝对不要**对已有订单再用 create_order
 
 ### 禁止 3：主动列全部菜品清单
@@ -550,10 +551,17 @@ class DiningAgent:
         if context:
             _msg = context + "\n\n---\n顾客消息: " + _msg
 
+        # 下单意图检测（在 context 注入前的原始消息上判断）
+        raw_msg = message.strip()
+        order_intent = bool(re.search(
+            r"(来|点|加|上|要)\s*[一二两三四五六七八九十0-9]{0,2}\s*(份|个|碗|杯|瓶|听|盒|盘)|下单|确认下单|就这些",
+            raw_msg))
+
         history.append({"role": "user", "content": _msg})
 
         tools_called_info: list[dict] = []
         max_rounds = 3
+        forced_order_retry = False
 
         for _ in range(max_rounds):
             try:
@@ -565,7 +573,24 @@ class DiningAgent:
             msg = response.choices[0].message
 
             if not msg.tool_calls:
-                return self._finish_reply(history, session_id, message, msg.content, tools_called_info)
+                # 🔒 下单意图硬兜底：顾客明确要下单/加单，AI 却只回文字没调工具
+                # → 追加系统提示 + tool_choice="required" 强制重试一次（防 LLM 偷懒）
+                if order_intent and not forced_order_retry:
+                    forced_order_retry = True
+                    history.append({"role": "user", "content": "（系统提示：顾客有明确的点餐/加单意图。请立即调用对应工具（create_order/add_to_order/replace_item/delete_item）执行操作，不要只用文字回复。）"})
+                    try:
+                        forced = self.client.chat.completions.create(
+                            model=self.model, messages=history,
+                            tools=TOOL_DEFINITIONS, tool_choice="required",
+                            temperature=0.2, max_tokens=2048,
+                        )
+                        msg = forced.choices[0].message
+                        if not msg.tool_calls:
+                            return self._finish_reply(history, session_id, message, msg.content, tools_called_info)
+                    except Exception:
+                        return self._finish_reply(history, session_id, message, msg.content, tools_called_info)
+                else:
+                    return self._finish_reply(history, session_id, message, msg.content, tools_called_info)
 
             # 将 OpenAI Message 对象转为 dict 再存入 history（可序列化）
             history.append(self._to_msg_dict(msg))
