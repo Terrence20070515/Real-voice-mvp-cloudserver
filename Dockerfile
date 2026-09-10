@@ -22,5 +22,6 @@ EXPOSE 8080
 
 # 启动命令
 # 注意：端口必须用 8080，与云托管健康检查端口匹配，否则部署会失败
-# 云托管环境不要用 --reload，生产环境用多 worker
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]
+# 必须 --workers 1：多 worker 内存态（对话历史/订单关联）不共享，
+# 同一会话的连续请求被轮流路由到不同 worker 会导致加单丢失/订单幻觉
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
