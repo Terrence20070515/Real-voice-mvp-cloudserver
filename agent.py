@@ -94,7 +94,15 @@ def _load_training_examples() -> str:
             examples = json.load(f)
         if not examples or not isinstance(examples, list):
             return ""
-        lines = ["", "## 标准问答示例（请参考以下示例的回复风格和质量）"]
+        lines = [
+            "",
+            "## 标准问答示例（仅参考回复风格，禁止照搬菜品）",
+            "⚠️ 重要：以下示例里的菜名、价格、描述是历史菜单的快照，可能与当前菜单不符。",
+            "  - 你只能参考示例的「说话方式、回复结构、语气」",
+            "  - 实际推荐/下单必须调用 get_menu / recommend_dishes 查当前菜单",
+            "  - 示例里出现的菜如果不在当前菜单中，绝对不能推荐给顾客",
+            "  - 示例里的价格不得直接使用，必须以 get_menu 返回的价格为准",
+        ]
         for i, ex in enumerate(examples, 1):
             user = ex.get("user", "")
             reply = ex.get("reply", "")
