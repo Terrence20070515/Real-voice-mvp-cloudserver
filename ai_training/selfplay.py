@@ -146,7 +146,8 @@ def judge_session(persona: dict, menu_summary: str, dialog: str) -> dict:
 
 
 def run_session(idx: int, persona: dict, menu_summary: str) -> dict:
-    sid = f"selfplay_{idx:03d}_{persona['name']}"
+    # session_id 加时间戳：跨运行必须唯一，否则 _restore_history 会恢复上一轮测试的对话污染本次会话
+    sid = f"selfplay_{int(time.time())}_{idx:03d}_{persona['name']}"
     history = []
     tool_fallback = 0
     t0 = time.time()
