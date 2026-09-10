@@ -17,15 +17,18 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
 # 数据文件（基于本文件位置计算绝对路径，避免依赖工作目录导致读错文件）
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MENU_FILE = os.path.join(BASE_DIR, "menu.json")
-ORDERS_FILE = os.path.join(BASE_DIR, "data", "orders.json")
-SESSIONS_FILE = os.path.join(BASE_DIR, "data", "sessions.json")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+# menu.json 放数据卷：admin 上传的菜单持久化，容器重启不丢
+# （镜像里 /app/menu.json 作为首次启动的默认源，main.py startup 复制到 data 卷）
+MENU_FILE = os.path.join(DATA_DIR, "menu.json")
+ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
+SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 # 对话日志（每次对话追加，排查用）
-CONVERSATIONS_FILE = os.path.join(BASE_DIR, "data", "conversations.json")
+CONVERSATIONS_FILE = os.path.join(DATA_DIR, "conversations.json")
 # 训练样本（入库，AI 回复风格参考）
-TRAINING_EXAMPLES_FILE = os.path.join(BASE_DIR, "data", "training_examples.json")
+TRAINING_EXAMPLES_FILE = os.path.join(DATA_DIR, "training_examples.json")
 # 对话历史持久化目录（每个 session 一个文件，多实例恢复用）
-HISTORY_DIR = os.path.join(BASE_DIR, "data", "sessions")
+HISTORY_DIR = os.path.join(DATA_DIR, "sessions")
 
 
 def get_llm_config() -> dict:

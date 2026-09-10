@@ -14,6 +14,7 @@ import requests
 
 from agent import DiningAgent
 from tools import query_menu_list, list_orders, pay_order, clear_orders, delete_legacy_orders, checkout_session
+from config import MENU_FILE
 
 app = FastAPI(title="Real Voice MVP", version="1.0.14")
 agent = DiningAgent()
@@ -35,6 +36,18 @@ def _keepalive_worker():
 
 @app.on_event("startup")
 def start_keepalive():
+    # 初始化 menu.json：数据卷里没有就从镜像默认菜单复制过去
+    # 这样 admin 上传的菜单持久化在卷里，容器重启不丢
+    default_menu = os.path.join(os.path.dirname(__file__), "menu.json")
+    try:
+        if not os.path.exists(MENU_FILE) and os.path.exists(default_menu):
+            os.makedirs(os.path.dirname(MENU_FILE), exist_ok=True)
+            with open(default_menu, encoding="utf-8") as src, open(MENU_FILE, "w", encoding="utf-8") as dst:
+                dst.write(src.read())
+            print(f"[STARTUP] 已从默认菜单初始化 {MENU_FILE}", flush=True)
+    except Exception as e:
+        print(f"[STARTUP] menu.json 初始化失败: {e}", flush=True)
+
     t = threading.Thread(target=_keepalive_worker, daemon=True)
     t.start()
 
@@ -204,10 +217,9 @@ class MenuImportRequest(BaseModel):
 
 @app.post("/api/menu/import")
 def api_import_menu(req: MenuImportRequest):
-    """导入新菜单，覆盖原有菜单文件"""
+    """导入新菜单，覆盖原有菜单文件（写入数据卷，持久化）"""
     try:
-        menu_path = os.path.join(os.path.dirname(__file__), "menu.json")
-        with open(menu_path, "w", encoding="utf-8") as f:
+        with open(MENU_FILE, "w", encoding="utf-8") as f:
             json.dump(req.model_dump(exclude_none=True), f, ensure_ascii=False, indent=2)
         return {"status": "ok", "message": f"菜单已更新，共 {sum(len(c['items']) for c in req.categories)} 道菜"}
     except Exception as e:
