@@ -563,7 +563,7 @@ class DiningAgent:
         max_rounds = 3
         forced_order_retry = False
 
-        for _ in range(max_rounds):
+        for _round in range(max_rounds):
             try:
                 response = self._call_llm(history, with_tools=True)
             except Exception as e:
@@ -573,10 +573,10 @@ class DiningAgent:
             msg = response.choices[0].message
 
             if not msg.tool_calls:
-                # 🔒 下单意图硬兜底：顾客明确要下单/加单，AI 却只回文字没调工具
-                # → 追加系统提示 + tool_choice="required" 强制重试一次（防 LLM 偷懒）
-                if order_intent and not forced_order_retry:
-                    forced_order_retry = True
+                # 🔒 下单意图硬兜底：仅在本轮对话首次响应（还没执行过任何工具）时
+                # 若顾客明确要下单但 AI 只回文字 → 强制 tool_choice="required" 重试一次
+                # （不限轮次会导致工具执行后的确认文字也触发强制重调 → 重复下单、金额翻倍）
+                if order_intent and _round == 0 and not tools_called_info:
                     history.append({"role": "user", "content": "（系统提示：顾客有明确的点餐/加单意图。请立即调用对应工具（create_order/add_to_order/replace_item/delete_item）执行操作，不要只用文字回复。）"})
                     try:
                         forced = self.client.chat.completions.create(
