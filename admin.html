@@ -304,6 +304,12 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     <button class="btn-parse" onclick="parseMenuText()">AI 解析并导入</button>
     <div id="parseStatus"></div>
   </div>
+  <div class="parse-area">
+    <div class="parse-title">或拍/传菜单图片，多模态 AI 识别一键导入</div>
+    <input type="file" id="menuImageInput" accept="image/*" onchange="parseMenuImage(event)" style="display:none">
+    <button class="btn-parse" id="btnImageParse" onclick="document.getElementById('menuImageInput').click()">📷 上传菜单图片</button>
+    <div id="imageParseStatus"></div>
+  </div>
   <div id="menuContainer"></div>
 </div>
 
@@ -727,6 +733,50 @@ async function parseMenuText() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ==================== 图片识别导入 ====================
+async function parseMenuImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) { toast('图片太大（>8MB），请压缩后重传', 'error'); return; }
+  const btn = $('btnImageParse');
+  btn.disabled = true;
+  $('imageParseStatus').innerHTML = '<div class="loading">📷 AI 识别中（10-30 秒）...</div>';
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const base64 = e.target.result;  // 含 data:image/...;base64, 前缀
+    try {
+      const base = $('apiBaseUrl').value.replace(/\/+$/, '');
+      // 1) 多模态识别
+      const parseRes = await fetch(base + '/api/menu/parse-image', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({image: base64})
+      });
+      if (!parseRes.ok) {
+        const err = await parseRes.json().catch(() => ({}));
+        throw new Error(err.detail || '识别失败:' + parseRes.status);
+      }
+      const parsed = await parseRes.json();
+      const dishCount = (parsed.categories||[]).reduce((s,c)=>s+(c.items||[]).length, 0);
+      // 2) 导入落库
+      const importRes = await fetch(base + '/api/menu/import', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(parsed)
+      });
+      if (!importRes.ok) throw new Error('导入失败:' + importRes.status);
+      toast(`识别成功，已导入 ${dishCount} 道菜`, 'success');
+      $('imageParseStatus').innerHTML = `<div style="color:var(--success);">✓ 识别并导入 ${dishCount} 道菜（${parsed.categories.length} 个分类）</div>`;
+      loadMenu();
+    } catch(e) {
+      toast('图片识别失败: ' + e.message, 'error');
+      $('imageParseStatus').innerHTML = '<div style="color:var(--danger);">✗ ' + e.message + '</div>';
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
 }
 
 // ==================== Polling ====================

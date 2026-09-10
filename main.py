@@ -315,6 +315,55 @@ def api_parse_menu_text(req: ParseTextRequest):
     return _call_llm_parse(messages)
 
 
+class ParseImageRequest(BaseModel):
+    image: str  # base64 编码（可带 data:image/...;base64, 前缀）
+
+
+@app.post("/api/menu/parse-image")
+def api_parse_menu_image(req: ParseImageRequest):
+    """图片 → 结构化菜单（通义千问 VL，需配置 MULTIMODAL_API_KEY）
+
+    admin 后台上传菜单图片，多模态模型识别菜品→结构化 JSON。
+    未配多模态 key 时返回 503 提示。
+    """
+    from config import get_multimodal_config
+    mm_cfg = get_multimodal_config()
+    if not mm_cfg:
+        raise HTTPException(status_code=503, detail="未配置多模态模型 key（MULTIMODAL_API_KEY），图片识别不可用。在 .env 配 MULTIMODAL_API_KEY 后可用。")
+
+    image_data = req.image.strip()
+    # 补全 data URL 前缀（前端传纯 base64 也兼容）
+    if not image_data.startswith("data:"):
+        image_data = f"data:image/jpeg;base64,{image_data}"
+
+    messages = [
+        {"role": "system", "content": PARSE_PROMPT},
+        {"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": image_data}},
+            {"type": "text", "text": "解析图片里的菜单内容，严格按 JSON 格式输出。识别每道菜的名称、价格、辣度（从菜名/标签推断）、食材、过敏原、描述。"},
+        ]},
+    ]
+
+    client = OpenAI(api_key=mm_cfg["api_key"], base_url=mm_cfg["base_url"])
+    try:
+        resp = client.chat.completions.create(
+            model=mm_cfg["model"],
+            messages=messages,
+            temperature=0.1,
+            max_tokens=4096,
+        )
+        content = resp.choices[0].message.content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        return json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="模型输出不是合法 JSON，请换张更清晰的菜单图重试")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"图片识别失败: {e}")
+
+
 # ─── 店家管理后台页面 ───
 
 ADMIN_PATH = os.path.join(os.path.dirname(__file__), "admin.html")
