@@ -167,6 +167,27 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 .import-text { font-size: 14px; color: var(--text-muted); }
 .import-icon { font-size: 36px; margin-bottom: 8px; }
 
+/* 文本智能解析区 */
+.parse-area {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 20px;
+}
+.parse-title { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 10px; }
+.parse-area textarea {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+  font-size: 13px; font-family: inherit; resize: vertical; outline: none; box-sizing: border-box;
+}
+.parse-area textarea:focus { border-color: var(--accent); }
+.btn-parse {
+  margin-top: 10px; padding: 8px 18px; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 14px; font-weight: 500; transition: all 0.2s;
+}
+.btn-parse:hover { opacity: 0.9; }
+.btn-parse:disabled { opacity: 0.5; cursor: not-allowed; }
+#parseStatus { margin-top: 10px; font-size: 13px; }
+#parseStatus .loading { color: var(--text-muted); }
+#parseStatus pre { background: #f5f5f3; padding: 10px; border-radius: 6px; font-size: 12px; overflow-x: auto; max-height: 300px; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
@@ -276,6 +297,12 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     <input type="file" id="menuFileInput" accept=".json" onchange="importMenu(event)">
     <div class="import-icon">&#x1F4C1;</div>
     <div class="import-text">点击上传 menu.json 文件，或从后端一键导入菜单</div>
+  </div>
+  <div class="parse-area">
+    <div class="parse-title">或粘菜单文字，AI 智能解析一键导入</div>
+    <textarea id="menuTextInput" placeholder="水煮鱼 68元 麻辣，活鱼现杀&#10;毛血旺 58 重庆经典&#10;清蒸鲈鱼 不辣 58&#10;米饭 3" rows="6"></textarea>
+    <button class="btn-parse" onclick="parseMenuText()">AI 解析并导入</button>
+    <div id="parseStatus"></div>
   </div>
   <div id="menuContainer"></div>
 </div>
@@ -666,6 +693,40 @@ function importMenu(event) {
   };
   reader.readAsText(file);
   event.target.value = '';
+}
+
+// ==================== 文本智能解析 ====================
+async function parseMenuText() {
+  const text = $('menuTextInput').value.trim();
+  if (!text) { toast('请先粘入菜单文字', 'error'); return; }
+  const btn = document.querySelector('.btn-parse');
+  btn.disabled = true;
+  $('parseStatus').innerHTML = '<div class="loading">AI 解析中，请稍候（5-15 秒）...</div>';
+  try {
+    const base = $('apiBaseUrl').value.replace(/\/+$/, '');
+    // 1) 调后端 LLM 解析
+    const parseRes = await fetch(base + '/api/menu/parse-text', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text})
+    });
+    if (!parseRes.ok) throw new Error('解析失败: ' + parseRes.status);
+    const parsed = await parseRes.json();
+    const dishCount = (parsed.categories||[]).reduce((s,c)=>s+(c.items||[]).length, 0);
+    // 2) 直接导入落库
+    const importRes = await fetch(base + '/api/menu/import', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(parsed)
+    });
+    if (!importRes.ok) throw new Error('导入失败: ' + importRes.status);
+    toast(`解析成功，已导入 ${dishCount} 道菜`, 'success');
+    $('parseStatus').innerHTML = `<div style="color:var(--success);">✓ 已导入 ${dishCount} 道菜（${parsed.categories.length} 个分类）</div>`;
+    loadMenu();  // 刷新菜单显示
+  } catch(e) {
+    toast('解析失败: ' + e.message, 'error');
+    $('parseStatus').innerHTML = '<div style="color:var(--danger);">✗ ' + e.message + '</div>';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ==================== Polling ====================

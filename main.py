@@ -226,6 +226,95 @@ def api_import_menu(req: MenuImportRequest):
         raise HTTPException(status_code=500, detail=f"写入失败: {e}")
 
 
+# ─── 菜单智能解析（文本/图片 → 结构化菜单）───
+# 让 admin 后台不用手写 JSON，粘菜单文字或拍菜单图片一键导入
+
+from openai import OpenAI
+from config import get_llm_config
+
+PARSE_PROMPT = """你是菜单解析助手。把用户给的菜单内容解析成严格 JSON。
+
+输出格式（只输出 JSON，不要 markdown 代码块，不要任何解释）：
+{
+  "restaurant": "餐厅名（从内容提取，没有写'餐厅'）",
+  "categories": [
+    {
+      "name": "分类名（招牌必点/凉菜/热菜·川味/热菜·清淡/汤类/主食/饮品，按内容归并）",
+      "items": [
+        {
+          "id": "分类拼音首字母+两位序号，如 s01/c02",
+          "name": "菜名",
+          "price": 纯数字,
+          "spicy": "不辣/微辣/中辣/麻辣/特辣",
+          "ingredients": ["食材1","食材2"],
+          "allergens": ["过敏原，含花生/鸡蛋/鱼/海鲜/大豆/牛奶等才标，否则空数组"],
+          "description": "一句话描述，原文没有就根据菜名推断"
+        }
+      ]
+    }
+  ]
+}
+
+规则：
+- 价格提取纯数字："68元"/"¥68"/"68" 都成 68
+- 辣度从菜名/描述推断：水煮鱼/麻婆豆腐/辣子鸡→麻辣，酸菜鱼→中辣，清蒸鱼/糖醋里脊→不辣
+- 过敏原只在菜品确实含时标，否则空数组
+- 只输出 JSON，不要代码块标记"""
+
+
+def _call_llm_parse(messages: list) -> dict:
+    """调 LLM 解析菜单文本/图片，返回结构化 dict"""
+    cfg = get_llm_config()
+    client = OpenAI(api_key=cfg["api_key"], base_url=cfg["base_url"])
+    last_err = None
+    for attempt in range(2):
+        try:
+            kwargs = {
+                "model": cfg["model"],
+                "messages": messages,
+                "temperature": 0.1,
+                "max_tokens": 4096,
+            }
+            # DeepSeek 支持 JSON 输出格式
+            if "deepseek" in cfg["model"]:
+                kwargs["response_format"] = {"type": "json_object"}
+            resp = client.chat.completions.create(**kwargs)
+            content = resp.choices[0].message.content.strip()
+            # 去掉可能的 markdown 代码块
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            return json.loads(content)
+        except Exception as e:
+            last_err = e
+            if attempt == 0:
+                _time.sleep(1)
+                continue
+    raise HTTPException(status_code=500, detail=f"LLM 解析失败: {last_err}")
+
+
+class ParseTextRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/menu/parse-text")
+def api_parse_menu_text(req: ParseTextRequest):
+    """文本 → 结构化菜单（用 DeepSeek 解析，现有 key 即可用）
+
+    admin 后台粘菜单文字，一键解析成结构化 JSON 返回。
+    前端拿到后再调 /api/menu/import 落库。
+    """
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text 不能为空")
+    messages = [
+        {"role": "system", "content": PARSE_PROMPT},
+        {"role": "user", "content": f"解析这个菜单：\n{text}"},
+    ]
+    return _call_llm_parse(messages)
+
+
 # ─── 店家管理后台页面 ───
 
 ADMIN_PATH = os.path.join(os.path.dirname(__file__), "admin.html")
