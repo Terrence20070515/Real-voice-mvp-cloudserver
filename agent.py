@@ -13,6 +13,9 @@ from config import (
 )
 from tools import TOOL_DEFINITIONS, TOOL_MAP
 
+# 会改变订单状态的写入类工具（用于幻觉确认检测：AI 声称完成操作但没调这些工具时强制重试）
+_WRITE_TOOLS = {"create_order", "add_to_order", "replace_item", "delete_item", "checkout_session"}
+
 SYSTEM_PROMPT = """你是川味小馆的AI点餐助手，负责协助顾客完成点餐流程。
 
 ## 核心能力
@@ -532,8 +535,12 @@ class DiningAgent:
             return _reply
 
         # 2.5) 结账意图硬兜底（「多少」排除询问价格场景）
+        # ⚠️ 混合意图放行：顾客一句话"加一份X，结账"时不能直接结账，
+        #    否则加单被跳过（漏单）。有加单意图时交给 LLM 先加单再结账。
         _checkout_words = ["去结账", "买单", "付款", "支付", "结账"]
-        if any(w in _msg for w in _checkout_words) and "多少" not in _msg:
+        _has_add_intent = bool(re.search(
+            r"(加|来|点|上|要)\s*[一二两三四五六七八九十0-9]{0,2}\s*(份|个|碗|杯|瓶|听|盒|盘)", _msg))
+        if any(w in _msg for w in _checkout_words) and "多少" not in _msg and not _has_add_intent:
             reply = self._run_checkout(session_id)
             history.append({"role": "user", "content": _msg})
             history.append({"role": "assistant", "content": reply})
@@ -573,11 +580,18 @@ class DiningAgent:
             msg = response.choices[0].message
 
             if not msg.tool_calls:
-                # 🔒 下单意图硬兜底：仅在本轮对话首次响应（还没执行过任何工具）时
-                # 若顾客明确要下单但 AI 只回文字 → 强制 tool_choice="required" 重试一次
-                # （不限轮次会导致工具执行后的确认文字也触发强制重调 → 重复下单、金额翻倍）
-                if order_intent and _round == 0 and not tools_called_info:
-                    history.append({"role": "user", "content": "（系统提示：顾客有明确的点餐/加单意图。请立即调用对应工具（create_order/add_to_order/replace_item/delete_item）执行操作，不要只用文字回复。）"})
+                # 🔒 写入操作真实性检测（防幻觉确认）：
+                # AI 回复声称"已下单/已加/已结账"但本轮对话从未调用过任何写入工具
+                # → 用 tool_choice="required" 强制重试一次
+                replied = msg.content or ""
+                _confirm_words = ("已为您", "已下单", "已加", "已加入", "已取消", "已退", "订单号", "共支付", "合计")
+                _wrote = any(c["name"] in _WRITE_TOOLS for c in tools_called_info)
+                _lied = (not _wrote) and any(w in replied for w in _confirm_words)
+                # 下单意图兜底：仅首轮响应且未执行过工具时触发
+                needs_force = (_round == 0 and not tools_called_info and order_intent) or (_lied and not forced_order_retry)
+                if needs_force:
+                    forced_order_retry = True
+                    history.append({"role": "user", "content": "（系统提示：你上一条回复声称已完成点餐操作，但实际没有调用任何写入工具。请立即调用正确的工具（create_order/add_to_order/replace_item/delete_item/checkout_session）执行操作。）"})
                     try:
                         forced = self.client.chat.completions.create(
                             model=self.model, messages=history,
