@@ -7,6 +7,7 @@
         "include": []
     },
     "setting": {
+        "urlCheck": false,
         "coverView": true,
         "es6": true,
         "postcss": true,
@@ -18,11 +19,24 @@
             "ignore": [],
             "disablePlugins": [],
             "outputPath": ""
-        }
+        },
+        "compileWorklet": false,
+        "uglifyFileName": false,
+        "uploadWithSourceMap": true,
+        "packNpmManually": false,
+        "minifyWXSS": true,
+        "minifyWXML": true,
+        "localPlugins": false,
+        "disableUseStrict": false,
+        "useCompilerPlugins": false,
+        "condition": false,
+        "swc": false,
+        "disableSWC": true
     },
     "condition": {},
     "editorSetting": {
         "tabIndent": "insertSpaces",
         "tabSize": 4
-    }
+    },
+    "simulatorPluginLibVersion": {}
 }

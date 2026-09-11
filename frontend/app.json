@@ -1,5 +1,4 @@
 {
-  "cloud": true,
   "pages": [
     "pages/home/home",
     "pages/chat/chat",
