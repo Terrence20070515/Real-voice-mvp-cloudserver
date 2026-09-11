@@ -482,6 +482,49 @@ def api_parse_menu_image(req: ParseImageRequest):
         raise HTTPException(status_code=500, detail=f"图片识别失败: {e}")
 
 
+# ─── RLAIF 闭环：示例池回灌接口 ───
+
+@app.post("/api/training/import")
+def api_training_import(req: dict):
+    """高分示例回灌（selfplay distill 推送）：按顾客消息去重后合并进示例池。
+
+    body: {"token": "...", "examples": [{"user": "...", "reply": "..."}]}
+    原子写落库，新会话自动加载新示例（无需重启）。
+    """
+    token = os.getenv("ADMIN_TOKEN", "rv-distill-2026")
+    if req.get("token") != token:
+        raise HTTPException(status_code=403, detail="token 错误")
+    examples = req.get("examples")
+    if not isinstance(examples, list):
+        raise HTTPException(status_code=400, detail="examples 必须是数组")
+
+    cur = []
+    if os.path.exists(TRAINING_EXAMPLES_FILE):
+        try:
+            with open(TRAINING_EXAMPLES_FILE, encoding="utf-8") as f:
+                cur = json.load(f)
+        except Exception:
+            cur = []
+    seen = {e.get("user", "").strip() for e in cur if isinstance(e, dict)}
+    added = 0
+    for ex in examples:
+        if not isinstance(ex, dict):
+            continue
+        u = (ex.get("user") or "").strip()
+        r = (ex.get("reply") or "").strip()
+        if not u or not r or u in seen:
+            continue
+        seen.add(u)
+        cur.append({"user": u, "reply": r})
+        added += 1
+    if added:
+        tmp = TRAINING_EXAMPLES_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cur, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, TRAINING_EXAMPLES_FILE)
+    return {"status": "ok", "added": added, "total": len(cur)}
+
+
 # ─── 店家管理后台页面 ───
 
 ADMIN_PATH = os.path.join(os.path.dirname(__file__), "admin.html")

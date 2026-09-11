@@ -187,11 +187,85 @@ def run_session(idx: int, persona: dict, menu_summary: str) -> dict:
     return record
 
 
+def distill_high_scores(min_score: int = 4):
+    """RLAIF 闭环收口：judge ≥ min_score 的会话对话对，去重后回灌本地示例池。
+
+    回灌写入 data/training_examples.json，再由 push_distill 推到服务器生效。
+    """
+    in_file = BASE / "output" / "selfplay_sessions.jsonl"
+    te_file = REPO / "data" / "training_examples.json"
+    if not in_file.exists():
+        print("[DISTILL] 无会话数据可回灌")
+        return 0, 0
+    existing = []
+    if te_file.exists():
+        try:
+            existing = json.load(open(te_file, encoding="utf-8"))
+        except Exception:
+            existing = []
+    seen_users = {ex.get("user", "").strip() for ex in existing}
+    added = 0
+    sessions_used = 0
+    for line in open(in_file, encoding="utf-8"):
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if rec.get("score", {}).get("total", 0) < min_score:
+            continue
+        dialog = rec.get("dialog", [])
+        pairs = []
+        for i in range(len(dialog) - 1):
+            cur, nxt = dialog[i], dialog[i + 1]
+            if cur["role"] == "customer" and nxt["role"] == "ai":
+                u, r = cur["text"].strip(), nxt["text"].strip()
+                if not u or not r:
+                    continue
+                if "系统提示" in r or "无法回应" in r or "请求失败" in r:
+                    continue  # 过滤带系统痕迹/异常的回复
+                pairs.append({"user": u, "reply": r})
+        if pairs:
+            sessions_used += 1
+        for p in pairs:
+            if p["user"] in seen_users:
+                continue
+            seen_users.add(p["user"])
+            existing.append(p)
+            added += 1
+    if added:
+        tmp = str(te_file) + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, te_file)
+    print(f"[DISTILL] 回灌完成: 新增 {added} 条（来自 {sessions_used} 个 ≥{min_score} 分会话），示例池共 {len(existing)} 条")
+    return added, len(existing)
+
+
+def push_distill():
+    """把本地示例池推送到服务器（/api/training/import 合并去重）"""
+    te_file = REPO / "data" / "training_examples.json"
+    if not te_file.exists():
+        return
+    examples = json.load(open(te_file, encoding="utf-8"))
+    payload = json.dumps({"token": "rv-distill-2026", "examples": examples}).encode()
+    req = urllib.request.Request(
+        BACKEND + "/api/training/import", data=payload,
+        headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            d = json.loads(r.read())
+            print(f"[DISTILL] 推送服务器: 新增 {d['added']} 条，服务器示例池共 {d['total']} 条")
+    except Exception as e:
+        print(f"[DISTILL] 推送服务器失败: {e}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sessions", type=int, default=12)
     ap.add_argument("--mode", choices=["normal", "hard"], default="normal",
                     help="normal=常规顾客 | hard=压力测试（挖badcase）")
+    ap.add_argument("--no-distill", action="store_true",
+                    help="跳过高分回灌示例池")
     args = ap.parse_args()
 
     global PERSONAS
@@ -239,6 +313,12 @@ def main():
     good = sum(1 for t in totals if t >= 4)
     if n:
         print(f"5分占比: {perfect}/{n} | ≥4分(合格线): {good}/{n} = {good/n:.0%}")
+
+    # ─── RLAIF 闭环收口：高分回灌示例池 + 推送服务器 ───
+    if not args.no_distill:
+        print()
+        distill_high_scores(min_score=4)
+        push_distill()
 
 
 if __name__ == "__main__":
