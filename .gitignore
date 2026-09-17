@@ -21,3 +21,10 @@ frontend/.project.private.config.json
 .vscode/
 .idea/
 .DS_Store
+
+# selfplay 运行时产出（不入库，本地落盘即可）
+ai_training/output/
+
+# 原子写临时文件
+data/*.tmp
+*.json.tmp
