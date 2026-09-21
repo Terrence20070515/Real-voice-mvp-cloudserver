@@ -28,3 +28,4 @@ ai_training/output/
 # 原子写临时文件
 data/*.tmp
 *.json.tmp
+data/menu.json

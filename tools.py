@@ -353,8 +353,18 @@ def create_order(items=None, customer_name: str = "", session_id: str = "") -> s
         return f"以下菜品有问题：{'；'.join(errors)}。请核对后再下单。"
 
     customer = customer_name or "顾客"
+    # 🔒 订单号基于现有最大编号生成，防重复（历史并发期曾产生重复 ORD0083）
+    try:
+        max_no = max(
+            int(str(o.get("order_id", ""))[3:])
+            for o in orders
+            if str(o.get("order_id", "")).startswith("ORD")
+            and str(o["order_id"])[3:].isdigit()
+        )
+    except ValueError:
+        max_no = len(orders)
     order = {
-        "order_id": f"ORD{len(orders)+1:04d}",
+        "order_id": f"ORD{max_no + 1:04d}",
         "session_id": session_id,
         "customer": customer,
         "items": order_items,

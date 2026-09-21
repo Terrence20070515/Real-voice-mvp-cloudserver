@@ -8,6 +8,7 @@ from config import (
     get_llm_config,
     CONVERSATIONS_FILE,
     TRAINING_EXAMPLES_FILE,
+    MENU_FILE,
     ORDERS_FILE,
     HISTORY_DIR,
 )
@@ -16,7 +17,7 @@ from tools import TOOL_DEFINITIONS, TOOL_MAP
 # 会改变订单状态的写入类工具（用于幻觉确认检测：AI 声称完成操作但没调这些工具时强制重试）
 _WRITE_TOOLS = {"create_order", "add_to_order", "replace_item", "delete_item", "checkout_session"}
 
-SYSTEM_PROMPT = """你是川味小馆的AI点餐助手，负责协助顾客完成点餐流程。
+SYSTEM_PROMPT_TMPL = """你是{restaurant}的AI点餐助手，负责协助顾客完成点餐流程。
 
 ## 核心能力
 - 所有菜品信息必须通过工具 `get_menu` 或 `recommend_dishes` 查询，不得自行编造菜品、价格或描述
@@ -160,11 +161,24 @@ class DiningAgent:
         # 每个 session 的槽位状态表（人数/过敏/偏好等，从对话中实时提取）
         self.session_slots: dict[str, dict] = {}
 
+    def _get_restaurant_name(self) -> str:
+        """店名与菜单同源：实时读 menu.json 的 restaurant 字段。
+
+        修复：此前店名硬编码「川味小馆」，import 换菜单后店名不跟随（队友实测 bug）。
+        现每次创建新会话时读取，import 新菜单后的新会话立即使用新店名。
+        """
+        try:
+            with open(MENU_FILE, encoding="utf-8") as f:
+                name = (json.load(f).get("restaurant") or "").strip()
+            return name or "本店"
+        except Exception:
+            return "本店"
+
     def _get_history(self, session_id: str) -> list[dict]:
         if session_id not in self.conversations:
             # 首次创建时动态加载 training examples 拼进 system prompt
             examples_text = _load_training_examples()
-            prompt = SYSTEM_PROMPT + examples_text
+            prompt = SYSTEM_PROMPT_TMPL.format(restaurant=self._get_restaurant_name()) + examples_text
             self.conversations[session_id] = [{"role": "system", "content": prompt}]
 
             # 尝试从文件恢复对话历史（防止云托管实例重启/水平扩展导致内存丢失）
