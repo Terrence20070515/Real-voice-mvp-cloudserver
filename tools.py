@@ -243,8 +243,16 @@ def query_menu_list(category: Optional[str] = None, keyword: Optional[str] = Non
     return results
 
 
+def _menu_empty() -> bool:
+    """菜单是否尚未配置（空店态）"""
+    menu = _load_json(MENU_FILE)
+    return not menu.get("categories")
+
+
 def get_menu(category: Optional[str] = None, keyword: Optional[str] = None) -> str:
     """查询菜单，返回 JSON 字符串（供 LLM Function Calling 使用）"""
+    if _menu_empty():
+        return "（本店菜单尚未配置。请礼貌告知顾客：菜单正在紧张整理中，稍后再来即可，暂时无法点餐。）"
     results = query_menu_list(category=category, keyword=keyword)
     if not results:
         return "没有找到匹配的菜品。"
@@ -252,6 +260,8 @@ def get_menu(category: Optional[str] = None, keyword: Optional[str] = None) -> s
 
 
 def recommend_dishes(preferences: str, allergens: str = "", count: int = 3) -> str:
+    if _menu_empty():
+        return "（本店菜单尚未配置，无法推荐。请礼貌告知顾客菜单正在整理中。）"
     menu = _load_json(MENU_FILE)
     all_items = []
     for cat in menu.get("categories", []):

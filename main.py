@@ -36,18 +36,8 @@ def _keepalive_worker():
 
 @app.on_event("startup")
 def start_keepalive():
-    # 初始化 menu.json：数据卷里没有就从镜像默认菜单复制过去
-    # 这样 admin 上传的菜单持久化在卷里，容器重启不丢
-    default_menu = os.path.join(os.path.dirname(__file__), "menu.json")
-    try:
-        if not os.path.exists(MENU_FILE) and os.path.exists(default_menu):
-            os.makedirs(os.path.dirname(MENU_FILE), exist_ok=True)
-            with open(default_menu, encoding="utf-8") as src, open(MENU_FILE, "w", encoding="utf-8") as dst:
-                dst.write(src.read())
-            print(f"[STARTUP] 已从默认菜单初始化 {MENU_FILE}", flush=True)
-    except Exception as e:
-        print(f"[STARTUP] menu.json 初始化失败: {e}", flush=True)
-
+    # 通用店家架构：后端以「空店」状态启动（无菜单、无示例）。
+    # 菜单由店家通过 admin 后台导入后自动生成；/api/menu/reset 可一键回到空店态。
     t = threading.Thread(target=_keepalive_worker, daemon=True)
     t.start()
 
@@ -248,6 +238,21 @@ def api_import_menu(req: MenuImportRequest):
         raise HTTPException(status_code=500, detail=f"写入失败: {e}")
 
 
+@app.post("/api/menu/reset")
+def api_menu_reset():
+    """重置到空店态：清空菜单与示例池（切换店家演示用）。
+
+    重置后 agent 自动进入「菜单尚未配置」模式；导入新菜单即完成新店家初始化。
+    """
+    try:
+        for f in (MENU_FILE, TRAINING_EXAMPLES_FILE):
+            if os.path.exists(f):
+                os.remove(f)
+        return {"status": "ok", "message": "已重置为空店态：菜单与示例池已清空，等待导入新菜单"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"重置失败: {e}")
+
+
 def _menu_diff_ratio(old_menu: dict, new_menu: dict) -> float:
     """新旧菜单菜品差异率（Jaccard 距离）：1 - |交集| / |并集|"""
     def dish_names(m: dict) -> set:
@@ -333,6 +338,11 @@ def _regenerate_training_examples(new_menu: dict) -> None:
         if not all_examples:
             print("[TRAINING] 生成结果为空，保留旧示例", flush=True)
             return
+        # 🔒 评分门控：Jev 打分优先，DeepSeek 降级，都不可用时全量保留
+        import scoring
+        gated = scoring.score_examples(all_examples)
+        if gated is not None:
+            all_examples = gated
         # 原子写落库
         os.makedirs(os.path.dirname(TRAINING_EXAMPLES_FILE), exist_ok=True)
         tmp = TRAINING_EXAMPLES_FILE + ".tmp"
