@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import threading
 import time
 from openai import OpenAI
 from config import (
@@ -160,6 +161,20 @@ class DiningAgent:
         self.session_orders: dict[str, list[str]] = {}
         # 每个 session 的槽位状态表（人数/过敏/偏好等，从对话中实时提取）
         self.session_slots: dict[str, dict] = {}
+        # 会话级分片锁：同一 session 的请求必须串行（见 _session_lock 说明）
+        self._locks = [threading.Lock() for _ in range(self._LOCK_STRIPES)]
+
+    # ── 并发保护 ──
+    # 对抗测试发现：同一 session 并发请求会交错写入共享的会话历史
+    # （_get_history 返回的是 self.conversations[session_id] 这个列表的**引用**），
+    # 导致 LLM 读到别的请求的工具返回，回复里的订单号张冠李戴
+    # （实测 3 并发：产生 3 个订单，却有 2 条回复报同一个订单号，另有订单号从未告知顾客）。
+    # 这里用「分片锁」把同一 session 的请求串行化：
+    # 固定若干把锁按 session_id 哈希分配，既解决问题，又避免为每个 session 建锁导致内存无限增长。
+    _LOCK_STRIPES = 64
+
+    def _session_lock(self, session_id: str) -> threading.Lock:
+        return self._locks[hash(session_id) % self._LOCK_STRIPES]
 
     def _get_restaurant_name(self) -> str:
         """店名与菜单同源：实时读 menu.json 的 restaurant 字段。
@@ -524,6 +539,15 @@ class DiningAgent:
         raise last_err
 
     def chat(self, session_id: str, message: str) -> str:
+        """对外入口：同一 session 的请求串行处理。
+
+        并发保护的必要性见 _session_lock 的说明 —— 不加锁时，同一会话的并发请求
+        会交错写入共享的会话历史，导致回复里报出别人的订单号。
+        """
+        with self._session_lock(session_id):
+            return self._chat_locked(session_id, message)
+
+    def _chat_locked(self, session_id: str, message: str) -> str:
         history = self._get_history(session_id)
         _msg = message.strip()
 
@@ -658,16 +682,18 @@ class DiningAgent:
         return self.session_orders.get(session_id, [])
 
     def clear_session(self, session_id: str) -> None:
-        if session_id in self.conversations:
-            del self.conversations[session_id]
-        if session_id in self.session_orders:
-            del self.session_orders[session_id]
-        if session_id in self.session_slots:
-            del self.session_slots[session_id]
-        # 清理持久化的对话历史文件
-        try:
-            hist_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
-            if os.path.exists(hist_file):
-                os.remove(hist_file)
-        except Exception:
-            pass
+        # 与 chat 共用同一把会话锁：避免「清空会话」和「正在进行的对话」互相踩踏
+        with self._session_lock(session_id):
+            if session_id in self.conversations:
+                del self.conversations[session_id]
+            if session_id in self.session_orders:
+                del self.session_orders[session_id]
+            if session_id in self.session_slots:
+                del self.session_slots[session_id]
+            # 清理持久化的对话历史文件
+            try:
+                hist_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
+                if os.path.exists(hist_file):
+                    os.remove(hist_file)
+            except Exception:
+                pass
