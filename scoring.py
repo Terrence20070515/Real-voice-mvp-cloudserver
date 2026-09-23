@@ -20,7 +20,7 @@ import requests
 TYPE_SAFE_KEY = os.getenv("TYPE_SAFE_API_KEY", "")
 TYPE_SAFE_URL = os.getenv("TYPE_SAFE_URL", "https://api.typesafe.ai/v1/systemone")
 JEV_MODEL = os.getenv("JEV_MODEL", "jev-latest")
-GATE_SCORE = float(os.getenv("EXAMPLE_GATE_SCORE", "3.0"))  # Jev 返回加权分（0-4 连续值），门控用 3.0=「合格以上」
+GATE_SCORE = float(os.getenv("EXAMPLE_GATE_SCORE", "1.8"))  # Jev 返回加权分（0-4 连续值）；实测正常示例落在 1.5-2.5，1.8=「有信息量且不雷同」
 JEV_BATCH = 20  # Jev 单次调用条数（控制 state 在 32k 内）
 
 SCORE_CRITERIA = [
@@ -69,8 +69,8 @@ def _score_jev(examples: list) -> list:
             f"ex_{i}": {
                 "type": "score",
                 "instructions": (
-                    f"评估第 `ex[{i}].user` 与 `ex[{i}].reply` 这组餐厅点餐示例的价值："
-                    "与其他示例是否重复、是否覆盖关键点餐场景、回复是否简洁专业"),
+                    f"评估第 `ex[{i}].user` 与 `ex[{i}].reply` 这组餐厅点餐示例的内在价值："
+                    "场景是否关键（下单/推荐/过敏处理/结账等）、回复是否简洁专业、能否作为客服范例直接复用"),
                 "criteria": SCORE_CRITERIA,
             }
             for i, _ in batch
