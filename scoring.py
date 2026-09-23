@@ -20,7 +20,7 @@ import requests
 TYPE_SAFE_KEY = os.getenv("TYPE_SAFE_API_KEY", "")
 TYPE_SAFE_URL = os.getenv("TYPE_SAFE_URL", "https://api.typesafe.ai/v1/systemone")
 JEV_MODEL = os.getenv("JEV_MODEL", "jev-latest")
-GATE_SCORE = int(os.getenv("EXAMPLE_GATE_SCORE", "4"))
+GATE_SCORE = float(os.getenv("EXAMPLE_GATE_SCORE", "3.0"))  # Jev 返回加权分（0-4 连续值），门控用 3.0=「合格以上」
 JEV_BATCH = 20  # Jev 单次调用条数（控制 state 在 32k 内）
 
 SCORE_CRITERIA = [
