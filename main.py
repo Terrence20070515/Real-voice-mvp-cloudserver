@@ -80,7 +80,7 @@ WX_SECRET = os.getenv("WX_SECRET", "")
 @app.get("/health")
 def root():
     """根路径 + 健康检查端点，云托管探针用"""
-    return {"service": "Real Voice MVP", "status": "running", "version": "1.0.14"}
+    return {"service": "Real Voice MVP", "status": "running", "version": "1.0.15"}
 
 
 @app.get("/api/menu")
@@ -88,8 +88,19 @@ def api_menu(
     category: str | None = Query(default=None, description="按分类筛选"),
     keyword: str | None = Query(default=None, description="按菜名搜索"),
 ):
-    """查询菜单，直接返回 list[dict]"""
-    return query_menu_list(category=category, keyword=keyword)
+    """查询菜单，返回 list[dict]（每项带「店名」，前端可动态显示店名）"""
+    items = query_menu_list(category=category, keyword=keyword)
+    if items:
+        restaurant = ""
+        try:
+            menu = json.load(open(MENU_FILE, encoding="utf-8"))
+            restaurant = (menu.get("restaurant") or "").strip()
+        except Exception:
+            restaurant = ""
+        if restaurant:
+            for it in items:
+                it["店名"] = restaurant
+    return items
 
 
 @app.post("/api/chat", response_model=ChatResponse)

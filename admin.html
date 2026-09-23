@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>川味小馆 - 店家管理后台</title>
+<title>店家管理后台</title>
 <style>
 :root {
   --bg: #f5f5f5;
@@ -248,7 +248,7 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 <body>
 
 <div class="topbar">
-  <h1>川味小馆 · 店家后台</h1>
+  <h1><span id="adminShopName">本店</span> · 店家后台</h1>
   <div class="topbar-right">
     <span id="connStatus" style="font-size:12px;color:#888;display:flex;align-items:center;gap:6px;">
       <span class="status-dot offline" id="statusDot"></span>
@@ -627,10 +627,15 @@ async function loadMenu() {
       // 按固定顺序排列分类
       const cats = order.filter(n => catMap[n]).map(n => catMap[n])
         .concat(Object.keys(catMap).filter(n => !order.includes(n)).map(n => catMap[n]));
-      menuData = { restaurant: '川味小馆', categories: cats };
+      menuData = { restaurant: (raw[0] && raw[0]['店名']) || '本店', categories: cats };
     } else {
       menuData = raw;
     }
+    // 店名动态化：title 与顶栏跟随当前菜单的 restaurant
+    const shopName = (menuData.restaurant || '本店').trim();
+    document.title = shopName + ' - 店家管理后台';
+    const shopEl = document.getElementById('adminShopName');
+    if (shopEl) shopEl.textContent = shopName;
     renderMenu();
   } catch(e) {
     $('menuContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">&#x1F37D;</div><div class="empty-text">加载失败：${e.message}<br><br>请确保后端正在运行</div></div>`;
@@ -640,7 +645,7 @@ async function loadMenu() {
 function renderMenu() {
   if (!menuData || !menuData.categories) return;
   let html = `<p style="margin-bottom:12px;font-size:13px;color:#666;">
-    餐厅：<b>${menuData.restaurant||'川味小馆'}</b> |
+    餐厅：<b>${menuData.restaurant||'本店'}</b> |
     分类 ${menuData.categories.length} 个 |
     菜品 ${(menuData.categories||[]).reduce((s,c)=>s+(c.items||[]).length,0)} 道
   </p>`;
