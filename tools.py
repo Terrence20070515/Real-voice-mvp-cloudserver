@@ -1,8 +1,22 @@
 """工具函数 — AI Agent 通过 Function Calling 调用的业务逻辑"""
 import json
 import os
+import threading
 from typing import Optional
 from config import MENU_FILE, ORDERS_FILE
+
+# 订单文件全局锁：orders.json 是全量读改写，两个不同 session 并发下单
+# 会互相覆盖（丢订单）。agent.py 的分片锁只串行化同 session 请求，管不到跨 session。
+_ORDERS_LOCK = threading.Lock()
+
+
+def _orders_locked(fn):
+    """订单读写函数的互斥装饰器：保证 read-modify-write 原子"""
+    def wrapper(*args, **kwargs):
+        with _ORDERS_LOCK:
+            return fn(*args, **kwargs)
+    wrapper.__name__ = fn.__name__
+    return wrapper
 
 
 def _load_json(path: str):
@@ -305,6 +319,7 @@ def recommend_dishes(preferences: str, allergens: str = "", count: int = 3) -> s
     return json.dumps(results, ensure_ascii=False, indent=2)
 
 
+@_orders_locked
 def create_order(items=None, customer_name: str = "", session_id: str = "") -> str:
     # 🔒 参数校验：LLM 传参不可信，坏参数返回友好错误，绝不抛异常
     if items is None or not isinstance(items, list) or not items:
@@ -387,6 +402,7 @@ def create_order(items=None, customer_name: str = "", session_id: str = "") -> s
     return json.dumps(order, ensure_ascii=False, indent=2)
 
 
+@_orders_locked
 def add_to_order(order_id: str, items: list[dict]) -> str:
     """追加菜品到已有订单（加单时使用）"""
     menu = _load_json(MENU_FILE)
@@ -474,6 +490,7 @@ def _find_order(orders: list, order_id: str):
     return None
 
 
+@_orders_locked
 def replace_item(order_id: str, old_dish_name: str, new_dish_name: str, quantity: int = 1) -> str:
     """换菜：删除旧菜 + 加入新菜，重算合计（一次原子操作，不会越换越多）"""
     menu = _load_json(MENU_FILE)
@@ -539,6 +556,7 @@ def replace_item(order_id: str, old_dish_name: str, new_dish_name: str, quantity
     return json.dumps(target, ensure_ascii=False, indent=2)
 
 
+@_orders_locked
 def delete_item(order_id: str, dish_name: str, quantity: int = None) -> str:
     """退菜：删除订单中的一道菜（quantity 不传整项删，传了减数量）"""
     orders = _load_json(ORDERS_FILE)
@@ -654,6 +672,7 @@ def trace_ingredient(dish_name: str) -> str:
     return f"未找到菜品「{dish_name}」，请确认名称是否正确。"
 
 
+@_orders_locked
 def checkout_session(session_id: str = "") -> str:
     """结账：把当前 session 下所有未支付订单标记为已支付"""
     if not session_id:
