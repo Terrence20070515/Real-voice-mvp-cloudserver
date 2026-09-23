@@ -7,8 +7,8 @@
   ],
   "window": {
     "navigationBarTextStyle": "white",
-    "navigationBarBackgroundColor": "#d4232c",
-    "navigationBarTitleText": "川味小馆",
+    "navigationBarBackgroundColor": "#141719",
+    "navigationBarTitleText": "点餐",
     "backgroundColor": "#f5f5f5",
     "backgroundTextStyle": "dark"
   },

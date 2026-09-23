@@ -1,8 +1,8 @@
 {
   "usingComponents": {},
-  "navigationBarTitleText": "川味小馆",
+  "navigationBarTitleText": "点餐",
   "navigationStyle": "custom",
   "enablePullDownRefresh": true,
-  "backgroundColor": "#fff5f5",
+  "backgroundColor": "#f5f6f7",
   "backgroundTextStyle": "dark"
 }

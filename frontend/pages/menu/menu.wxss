@@ -8,7 +8,7 @@
 
 /* 顶部导航 */
 .top-bar {
-  background: linear-gradient(135deg, #d4232c, #b71c1c);
+  background: linear-gradient(135deg, #141719, #2b3034);
   padding: 60rpx 30rpx 30rpx;
   display: flex;
   align-items: center;
@@ -46,7 +46,7 @@
   width: 60rpx;
   height: 60rpx;
   border: 4rpx solid #eee;
-  border-top: 4rpx solid #d4232c;
+  border-top: 4rpx solid #141719;
   border-radius: 50%;
   margin-bottom: 20rpx;
   animation: spin 0.8s linear infinite;
@@ -84,9 +84,9 @@
 
 .sidebar-item.active {
   background: #fff;
-  color: #d4232c;
+  color: #141719;
   font-weight: bold;
-  border-left-color: #d4232c;
+  border-left-color: #141719;
 }
 
 /* 右侧菜品列表 */
@@ -105,7 +105,7 @@
 .category-header {
   font-size: 28rpx;
   font-weight: bold;
-  color: #d4232c;
+  color: #141719;
   padding: 30rpx 0 20rpx;
   border-bottom: 1rpx solid #f5f5f5;
 }
@@ -178,7 +178,7 @@
 .dish-price {
   font-size: 32rpx;
   font-weight: bold;
-  color: #d4232c;
+  color: #141719;
 }
 
 /* 数量加减按钮 */
@@ -200,14 +200,14 @@
 }
 
 .qty-plus {
-  background: #d4232c;
+  background: #141719;
   color: #fff;
 }
 
 .qty-minus {
   background: #fff;
-  color: #d4232c;
-  border: 2rpx solid #d4232c;
+  color: #141719;
+  border: 2rpx solid #141719;
   width: 40rpx;
   height: 40rpx;
 }
@@ -257,7 +257,7 @@
 }
 
 .cart-icon.active {
-  background: linear-gradient(135deg, #d4232c, #b71c1c);
+  background: linear-gradient(135deg, #141719, #2b3034);
 }
 
 .cart-badge {
@@ -390,7 +390,7 @@
 
 .cart-item-qty {
   font-size: 28rpx;
-  color: #d4232c;
+  color: #141719;
   font-weight: bold;
 }
 

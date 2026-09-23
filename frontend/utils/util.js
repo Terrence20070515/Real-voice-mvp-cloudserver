@@ -129,6 +129,121 @@ const util = {
    */
   hasChinese(str) {
     return /[\u4e00-\u9fa5]/.test(str || '');
+  },
+
+  // ─────────────────────────────────────────────
+  //  菜单与店名：全部由后端菜单驱动，前端零硬编码
+  //  （店名规则：后端给 restaurant 就用；没给则按菜单内容推断菜系；都推不出用「本店」，
+  //    与后端 agent.py 的 _get_restaurant_name() 兜底保持一致）
+  // ─────────────────────────────────────────────
+
+  /** 安全转字符串：脏数据一律当空，避免渲染出 undefined / [object Object] */
+  safeStr(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    return '';
+  },
+
+  /**
+   * 菜单规范化：兼容三种后端返回
+   *   1. 扁平数组（当前线上）  2. {restaurant, items}  3. {restaurant, categories}
+   * 对脏数据零信任：null / 非对象 / 缺菜名的元素直接丢弃，
+   * 绝不让一条坏数据把整个菜单搞崩。
+   * @returns {{restaurant: (string|null), groups: Array, total: number}}
+   */
+  normalizeMenu(raw) {
+    const out = { restaurant: null, groups: [], total: 0 };
+
+    const pick = (it, catName) => {
+      if (!it || typeof it !== 'object' || Array.isArray(it)) return null;
+      const name = this.safeStr(it['菜品']) || this.safeStr(it.name) || this.safeStr(it.dish_name);
+      if (!name) return null;
+      return {
+        cat: this.safeStr(catName) || this.safeStr(it['分类']) || this.safeStr(it.category) || '其他',
+        name: name,
+        price: this.safeStr(it['价格']) || this.safeStr(it.price),
+        spicy: this.safeStr(it['辣度']) || this.safeStr(it.spicy),
+        desc: this.safeStr(it['描述']) || this.safeStr(it.description),
+        allergens: this.safeStr(it['过敏原']) || this.safeStr(it.allergens)
+      };
+    };
+
+    const add = (it, catName) => {
+      const d = pick(it, catName);
+      if (!d) return;
+      let g = out.groups.find(x => x.name === d.cat);
+      if (!g) { g = { name: d.cat, items: [] }; out.groups.push(g); }
+      g.items.push(d);
+      out.total++;
+    };
+
+    if (Array.isArray(raw)) {
+      raw.forEach(it => add(it));
+    } else if (raw && typeof raw === 'object') {
+      out.restaurant = raw.restaurant || raw.shop_name || null;
+      if (Array.isArray(raw.items)) {
+        raw.items.forEach(it => add(it));
+      } else if (Array.isArray(raw.categories)) {
+        raw.categories.forEach(c => {
+          if (!c || typeof c !== 'object') return;
+          (Array.isArray(c.items) ? c.items : []).forEach(it => add(it, c.name));
+        });
+      }
+    }
+    return out;
+  },
+
+  /** 菜系关键词表（用于后端未提供店名时的推断） */
+  CUISINES: [
+    { name: '川菜', keys: ['热菜·川味', '川味', '川菜', '麻辣', '水煮', '回锅', '宫保', '麻婆', '夫妻肺片',
+        '口水鸡', '毛血旺', '辣子鸡', '酸菜鱼', '担担', '冒菜', '豆瓣', '花椒', '鱼香', '钵钵鸡', '串串', '辣'] },
+    { name: '日料', keys: ['日式', '日料', '寿司', '刺身', '天妇罗', '味噌', '拉面', '鳗鱼', '照烧', '亲子丼',
+        '清酒', '芥末', '三文鱼', '金枪鱼', '乌冬', '居酒屋', '手卷', '军舰', '茶碗蒸'] },
+    { name: '粤菜', keys: ['粤菜', '粤式', '港式', '虾饺', '烧卖', '叉烧', '白灼', '肠粉', '煲仔', '老火',
+        '艇仔', '凤爪', '砂锅粥', '蒸排骨'] },
+    { name: '湘菜', keys: ['湘菜', '剁椒', '小炒肉', '口味虾', '臭豆腐', '外婆菜', '擂辣椒'] },
+    { name: '韩餐', keys: ['韩式', '韩餐', '泡菜', '石锅', '拌饭', '年糕', '部队锅', '大酱汤', '冷面', '烤肉'] },
+    { name: '泰餐', keys: ['泰式', '泰餐', '冬阴功', '青木瓜', '打抛', '椰浆', '绿咖喱', '菠萝饭'] },
+    { name: '西餐', keys: ['牛排', '意面', '披萨', '汉堡', '罗宋', '提拉米苏', '帕尼尼', '沙拉'] }
+  ],
+
+  /**
+   * 按菜单内容推断菜系；证据不足返回 null（宁可不猜）
+   * 分类名命中权重高（如「热菜·川味」），菜名/描述按命中菜品数计分、单分类封顶，避免长菜单刷分。
+   */
+  inferCuisine(groups) {
+    if (!groups || !groups.length) return null;
+    let best = null, bestScore = 0;
+
+    this.CUISINES.forEach(cu => {
+      let score = 0;
+      groups.forEach(g => {
+        const gName = this.safeStr(g.name);
+        if (cu.keys.some(k => gName.indexOf(k) >= 0)) score += 3;
+        let dishHit = 0;
+        (g.items || []).forEach(d => {
+          const text = this.safeStr(d.name) + ' ' + this.safeStr(d.desc);
+          if (cu.keys.some(k => text.indexOf(k) >= 0)) dishHit++;
+        });
+        score += Math.min(dishHit, 5);
+      });
+      if (score > bestScore) { bestScore = score; best = cu.name; }
+    });
+
+    return bestScore >= 4 ? best : null;
+  },
+
+  /** 最终展示的店名：后端字段 > 菜系推断 > 「本店」 */
+  displayName(restaurant, groups) {
+    const r = this.safeStr(restaurant).trim();
+    if (r) return r;
+    return this.inferCuisine(groups) || '本店';
+  },
+
+  /** 把扁平菜单按分类顺序分组（保持后端返回的分类次序） */
+  groupByCategory(groups) {
+    return groups || [];
   }
 };
 

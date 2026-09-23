@@ -95,10 +95,10 @@ Page({
   clearTable() {
     const oldSid = this.data.sessionId;
     wx.showModal({
-      title: '🧹 清台 / 换桌',
+      title: '清台 / 换桌',
       content: '确认该桌顾客已离席？\n将清除账单与 AI 对话记忆，并为下一位顾客开启全新对话。',
       confirmText: '确认清台',
-      confirmColor: '#d4232c',
+      confirmColor: '#141719',
       success: (res) => {
         if (!res.confirm) return;
         wx.showLoading({ title: '清台中...' });

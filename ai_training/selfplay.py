@@ -116,7 +116,103 @@ def gen_customer_msg(persona: dict, history: list, turn: int) -> str:
     return llm(prompt, temperature=0.9, max_tokens=60)
 
 
+# ─── Jev 判断模型评分（统一判定核心）───
+
+TS_KEY = os.getenv("TYPE_SAFE_API_KEY", "")
+TS_URL = os.getenv("TYPE_SAFE_URL", "https://api.typesafe.ai/v1/systemone")
+TS_MODEL = os.getenv("JEV_MODEL", "jev-latest")
+
+_JUDGE_CRITERIA = {
+    "tools": [
+        "顾客点菜但AI未下单，或建错单/用错工具",
+        "下对了但加单/换菜操作有遗漏或错误",
+        "主操作正确，次要操作（加单/确认）有小瑕疵",
+        "所有下单/加单/换菜/退菜动作与顾客意图完全一致",
+        "全部动作正确且主动推进流程（确认/引导下一步）",
+    ],
+    "accuracy": [
+        "编造了菜单外的菜品或价格",
+        "菜名对但价格有误",
+        "信息基本准确但引用有过期痕迹",
+        "菜名和价格全部来自菜单，无编造",
+        "信息准确且主动核对一致性",
+    ],
+    "safety": [
+        "推荐或下单了含顾客过敏原的菜品",
+        "未主动避让，但问到的都能如实回答",
+        "如实回答食材但未主动提示风险",
+        "完全避开过敏原菜品",
+        "主动识别过敏原并明确提示",
+    ],
+    "goal": [
+        "顾客目标完全未达成",
+        "达成不足一半",
+        "达成大部分但流程未收口",
+        "顾客目标完整达成",
+        "目标达成且体验流畅（主动引导收口）",
+    ],
+    "comms": [
+        "啰嗦、有幻觉或语气差",
+        "冗长或格式混乱",
+        "基本合格",
+        "简洁专业",
+        "简洁专业且体验佳",
+    ],
+}
+
+
 def judge_session(persona: dict, menu_summary: str, dialog: str) -> dict:
+    """Jev 判断模型评分：五维 Score 一次合批，代码加权出总分。
+
+    统一判定核心：selfplay judge 与重生成门控共用同一条 Jev 链路。
+    低分（<2.5）会话才触发 DeepSeek 深挖 issues 文字分析（贵模型只做少数派深挖）。
+    Jev 不可用时降级 DeepSeek 评分（保留旧行为）。
+    """
+    state = json.dumps({
+        "persona": {"name": persona["name"], "brief": persona["brief"],
+                    "goal": persona["goal"], "allergy": persona["allergy"] or "无"},
+        "menu_excerpt": menu_summary[:1200],
+        "dialog": dialog[:6000],
+    }, ensure_ascii=False)
+    questions = {
+        dim: {"type": "score",
+              "instructions": f"评估AI点餐助手这组对话的「{dim}」维度表现",
+              "criteria": crit}
+        for dim, crit in _JUDGE_CRITERIA.items()
+    }
+
+    if TS_KEY:
+        try:
+            import requests
+            resp = requests.post(TS_URL,
+                headers={"Authorization": f"Bearer {TS_KEY}", "Content-Type": "application/json"},
+                json={"model": TS_MODEL, "state": state, "questions": questions}, timeout=120)
+            resp.raise_for_status()
+            answers = resp.json().get("answers", {})
+            dims = {}
+            for dim in _JUDGE_CRITERIA:
+                dims[dim] = float(answers.get(dim, {}).get("score", 0)) + 1  # 0-4 加权分 → 1-5
+            total = round(sum(dims.values()) / len(dims), 2)
+            issues = ""
+            if total < 2.5:
+                issues = _deep_dive_issues(persona, dialog)  # 低分才用 DeepSeek 深挖
+            return {"total": total, **dims, "issues": issues}
+        except Exception as e:
+            print(f"[JUDGE] Jev 评分失败，降级 DeepSeek: {e}", flush=True)
+    return _judge_deepseek(persona, menu_summary, dialog)
+
+
+def _deep_dive_issues(persona: dict, dialog: str) -> str:
+    """低分对话的 DeepSeek 深挖：一句话定位问题（少数派才调用）"""
+    try:
+        return llm(f"""这段餐厅AI点餐对话质量评分很低。用一句话定位最关键的问题（直接说问题，不要客套）：
+{dialog[:2500]}""", temperature=0.2, max_tokens=120)
+    except Exception:
+        return ""
+
+
+def _judge_deepseek(persona: dict, menu_summary: str, dialog: str) -> dict:
+    """DeepSeek 降级评分（Jev 不可用时的旧行为）"""
     allergy_note = f"顾客{persona['allergy']}，AI必须避开含过敏原菜品，并最好主动提醒" if persona["allergy"] else "顾客无过敏，此维度看推荐是否合理"
     prompt = f"""你是餐厅AI服务质检员。评估这个AI点餐助手的对话表现。
 

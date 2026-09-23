@@ -4,7 +4,7 @@
   <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
     <view class="top-btns">
       <view class="back-btn" bindtap="goBack">‹</view>
-      <view class="menu-btn" bindtap="toggleMenu">📋</view>
+      <view class="menu-btn" bindtap="toggleMenu">菜单</view>
     </view>
     <view class="top-title">AI 点餐助手</view>
   </view>
@@ -24,7 +24,7 @@
       <block wx:for="{{messages}}" wx:key="id">
         <view id="{{item.id}}" class="msg-item {{item.role}}">
           <view class="avatar {{item.role}}">
-            {{item.role === 'user' ? '🧑' : '🤖'}}
+            {{item.role === 'user' ? '我' : 'AI'}}
           </view>
           <view class="msg-wrapper">
             <view class="msg-bubble">{{item.content}}</view>
@@ -33,7 +33,7 @@
               wx:if="{{item.role === 'assistant' && item.hasOrder}}"
               class="pay-entry-btn"
               catchtap="goToPay"
-            >💳 去结账 ›</view>
+            >去结账 ›</view>
             <text class="msg-time">{{item.time}}</text>
           </view>
         </view>
@@ -41,7 +41,7 @@
 
       <!-- AI 正在输入 -->
       <view class="msg-item assistant" wx:if="{{isLoading}}">
-        <view class="avatar assistant">🤖</view>
+        <view class="avatar assistant">AI</view>
         <view class="msg-wrapper">
           <view class="msg-bubble typing">
             <view class="typing-dot"></view>
@@ -66,18 +66,15 @@
           data-text="{{item.text}}"
           bindtap="sendQuickCommand"
         >
-          <view class="quick-icon">{{item.icon}}</view>
           <text class="quick-text">{{item.text}}</text>
         </view>
         <!-- 清空对话（同桌重开，保留订单）-->
         <view class="quick-item" bindtap="clearChat">
-          <view class="quick-icon">🗑️</view>
           <text class="quick-text">清空对话</text>
         </view>
 
         <!-- 清台 / 换桌（顾客已离席，彻底重置）-->
         <view class="quick-item" bindtap="clearTable">
-          <view class="quick-icon quick-icon-danger">🧹</view>
           <text class="quick-text">清台 / 换桌</text>
         </view>
       </view>

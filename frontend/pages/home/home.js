@@ -1,32 +1,27 @@
 // pages/home/home.js
+// 首页：店名 + 菜单 + AI 点单入口
+// 店名与菜单全部由后端驱动 —— 店家后台换菜单后，进页面即变，前端零硬编码。
 const api = require('../../api');
 const util = require('../../utils/util');
-const config = require('../../config');
 
 Page({
   data: {
-    menuData: [],
-    signatureDishes: [],
+    shopName: '',        // 店名：后端 restaurant 优先，否则按菜单推断菜系，兜底「本店」
+    shopMeta: '',        // 副标题：N 道菜 · M 个分类
+    groups: [],          // 全部菜单（已分组）
+    visibleGroups: [],   // 当前筛选后要渲染的
+    cats: [],            // 分类 chips
+    activeCat: '',       // '' = 全部
     loading: true,
-    restaurantName: config.restaurant.name,
-    slogan: config.restaurant.slogan,
-    hours: config.restaurant.hours,
-    address: config.restaurant.address,
-    phone: config.restaurant.phone,
     sessionId: ''
   },
 
   onLoad() {
-    // 进入时获取 session_id
-    const sid = util.getSessionId();
-    this.setData({ sessionId: sid });
-
-    // 加载菜单
-    this.loadMenuData();
+    this.setData({ sessionId: util.getSessionId() });
+    this.loadMenu();
   },
 
   onShow() {
-    // 每次显示都重新拿一次 sessionId（清空对话后可能变了）
     const sid = util.getSessionId();
     if (sid !== this.data.sessionId) {
       this.setData({ sessionId: sid });
@@ -34,89 +29,74 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadMenuData().then(() => {
-      wx.stopPullDownRefresh();
-    });
+    this.loadMenu().then(() => wx.stopPullDownRefresh());
   },
 
-  loadMenuData() {
+  loadMenu() {
     this.setData({ loading: true });
     return api
       .getMenu()
-      .then((data) => {
-        const grouped = this.groupByCategory(data);
-        // 提取招牌必点的菜作为推荐
-        const signature = (grouped.find((g) => g.name === '招牌必点') || { items: [] }).items.slice(0, 5);
+      .then((raw) => {
+        const menu = util.normalizeMenu(raw);
+        const name = util.displayName(menu.restaurant, menu.groups);
+
+        // 店名驱动导航栏标题：后台上传新菜单后，进页面即变
+        wx.setNavigationBarTitle({ title: name });
+
+        const hasMenu = menu.total > 0;
         this.setData({
-          menuData: grouped,
-          signatureDishes: signature,
+          shopName: name,
+          shopMeta: hasMenu
+            ? menu.total + ' 道菜 · ' + menu.groups.length + ' 个分类'
+            : '菜单尚未导入',
+          groups: menu.groups,
+          visibleGroups: menu.groups,
+          cats: menu.groups.map((g) => ({ name: g.name, count: g.items.length })),
+          activeCat: '',
           loading: false
         });
       })
       .catch((err) => {
         console.error('加载菜单失败', err);
-        this.setData({ loading: false });
-        wx.showToast({
-          title: err.message || '加载菜单失败',
-          icon: 'none'
+        wx.setNavigationBarTitle({ title: '点餐' });
+        this.setData({
+          shopName: '本店',
+          shopMeta: '菜单未加载',
+          loading: false,
+          groups: [],
+          visibleGroups: [],
+          cats: []
         });
+        wx.showToast({ title: (err && err.message) || '加载菜单失败', icon: 'none' });
       });
   },
 
-  groupByCategory(items) {
-    if (!Array.isArray(items)) return [];
-    const map = {};
-    const order = ['招牌必点', '凉菜', '热菜·川味', '热菜·清淡', '汤类', '主食', '饮品'];
-    items.forEach((item) => {
-      const cat = item['分类'] || '其他';
-      if (!map[cat]) map[cat] = { name: cat, items: [] };
-      map[cat].items.push({
-        name: item['菜品'],
-        price: item['价格'],
-        spicy: item['辣度'],
-        description: item['描述'],
-        allergens: item['过敏原']
-      });
+  // 分类筛选
+  onSelectCat(e) {
+    const cat = e.currentTarget.dataset.cat || '';
+    const groups = this.data.groups;
+    this.setData({
+      activeCat: cat,
+      visibleGroups: cat ? groups.filter((g) => g.name === cat) : groups
     });
-    const result = order.filter((n) => map[n]).map((n) => map[n]);
-    Object.keys(map).forEach((n) => {
-      if (order.indexOf(n) === -1) result.push(map[n]);
-    });
-    return result;
   },
 
-  // 跳转到 AI 点单
   goToChat() {
     wx.navigateTo({ url: '/pages/chat/chat' });
   },
 
-  // 跳转到完整菜单
   goToMenu() {
     wx.navigateTo({ url: '/pages/menu/menu' });
   },
 
-  // 跳转到买单页
   goToPay() {
-    wx.navigateTo({
-      url: '/pages/pay/pay?session_id=' + this.data.sessionId
-    });
+    wx.navigateTo({ url: '/pages/pay/pay?session_id=' + this.data.sessionId });
   },
 
-  // 拨打电话
-  callRestaurant() {
-    wx.makePhoneCall({
-      phoneNumber: this.data.phone,
-      fail: () => {
-        wx.showToast({ title: '取消拨打', icon: 'none' });
-      }
-    });
-  },
-
-  // 关于我们
   showAbout() {
     wx.showModal({
-      title: this.data.restaurantName,
-      content: '川味小馆成立于2010年，专注正宗川菜，传承百年老味道。\n\n本小程序由 AI 助手提供智能点餐服务，告诉它你想吃什么，剩下的交给它。',
+      title: this.data.shopName || '本店',
+      content: '本小程序由 AI 助手提供智能点餐服务，告诉它你想吃什么，剩下的交给它。',
       showCancel: false,
       confirmText: '知道了'
     });

@@ -41,13 +41,13 @@ Page({
 
     // 「+」面板：快捷指令
     quickCommands: [
-      { icon: '🌶️', text: '我吃辣的，没过敏' },
-      { icon: '🚫', text: '不辣的菜有哪些？' },
-      { icon: '⭐', text: '推荐几个招牌菜' },
-      { icon: '💰', text: '人均 50 元以内' },
-      { icon: '🥣', text: '来一份汤' },
-      { icon: '🍚', text: '主食有什么' },
-      { icon: '🥜', text: '我花生过敏' }
+      { text: '我吃辣的，没过敏' },
+      { text: '不辣的菜有哪些？' },
+      { text: '推荐几个招牌菜' },
+      { text: '人均 50 元以内' },
+      { text: '来一份汤' },
+      { text: '主食有什么' },
+      { text: '我花生过敏' }
     ]
   },
 
@@ -85,9 +85,9 @@ Page({
       this.setData({ messages: savedMessages });
       this.scrollToBottom();
     } else {
-      // 第一次进入，添加欢迎消息
+      // 第一次进入，添加欢迎消息（不带店名：店名由后端菜单驱动，这里保持通用）
       this.addMessage(
-        '您好！我是川味小馆的 AI 点餐助手 🤖\n\n可以告诉我您想吃什么，比如「我想吃辣的」、「推荐几个菜」，或者直接说「来一份水煮鱼」。\n\n请问几位用餐？',
+        '您好！我是 AI 点餐助手。\n\n可以告诉我您想吃什么，比如「我想吃辣的」、「推荐几个菜」，或者直接说出菜名。\n\n请问几位用餐？',
         'assistant'
       );
     }
@@ -255,14 +255,14 @@ Page({
       })
       .catch((err) => {
         console.error('AI 对话失败', err);
-        let hint = '⚠️ 网络开小差了';
+        let hint = '网络开小差了';
         if (err && err.message) {
           if (err.message.indexOf('connect') >= 0 || err.message.indexOf('无法连接') >= 0) {
-            hint = '⚠️ 无法连接后端服务\n\n请检查：\n1. 后端是否已启动（python main.py）\n2. config.js 里的 apiBaseUrl 是否正确（真机用局域网 IP）\n3. 手机和电脑是否在同一个 WiFi';
+            hint = '无法连接后端服务\n\n请检查：\n1. 后端是否已启动（python main.py）\n2. config.js 里的 apiBaseUrl 是否正确（真机用局域网 IP）\n3. 手机和电脑是否在同一个 WiFi';
           } else if (err.message.indexOf('超时') >= 0) {
-            hint = '⚠️ AI 思考太久啦，请稍后再试';
+            hint = 'AI 思考太久啦，请稍后再试';
           } else {
-            hint = '⚠️ ' + err.message;
+            hint = err.message;
           }
         }
         this.addMessage(hint, 'assistant');
@@ -321,7 +321,7 @@ Page({
       title: '清空对话',
       content: 'AI 会忘记之前的对话内容，但已下的订单不受影响。\n\n确定继续吗？',
       confirmText: '确定清空',
-      confirmColor: '#d4232c',
+      confirmColor: '#141719',
       success: (res) => {
         if (!res.confirm) return;
         wx.showLoading({ title: '清除中...' });
@@ -332,7 +332,7 @@ Page({
             util.clearChatHistory(this.data.sessionId);
             this.setData({ messages: [] });
             this.addMessage(
-              '✨ 对话已清空\n\n有什么可以帮您的？请问几位用餐？',
+              '对话已清空\n\n有什么可以帮您的？请问几位用餐？',
               'assistant'
             );
           })
@@ -354,10 +354,10 @@ Page({
   clearTable() {
     const oldSid = this.data.sessionId;
     wx.showModal({
-      title: '🧹 清台 / 换桌',
+      title: '清台 / 换桌',
       content: '确认该桌顾客已离席？\n将清除账单与 AI 对话记忆，并为下一位顾客开启全新对话。',
       confirmText: '确认清台',
-      confirmColor: '#d4232c',
+      confirmColor: '#141719',
       success: (res) => {
         if (!res.confirm) return;
         wx.showLoading({ title: '清台中...' });
@@ -376,7 +376,7 @@ Page({
             // 4) 重置界面为全新问候，开启下一轮对话
             this.setData({ sessionId: newSid, messages: [] });
             this.addMessage(
-              '欢迎光临川味小馆 🤖\n\n我是您的 AI 点餐助手。请问几位用餐？有什么忌口或口味偏好吗？',
+              '欢迎光临。我是您的 AI 点餐助手。请问几位用餐？有什么忌口或口味偏好吗？',
               'assistant'
             );
             wx.hideLoading();

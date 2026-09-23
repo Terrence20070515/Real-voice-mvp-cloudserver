@@ -23,7 +23,7 @@
 
     <!-- 没有订单 -->
     <view class="state-view" wx:elif="{{orders.length === 0}}">
-      <view class="empty-icon">🛒</view>
+      <view class="empty-icon">空</view>
       <text class="empty-text">还没有订单</text>
       <text class="empty-tip">去 AI 点餐页面下个单试试</text>
       <view class="continue-btn" bindtap="continueOrder">去点餐</view>
@@ -80,11 +80,11 @@
 
       <!-- 底部说明 -->
       <view class="footer-tip">
-        <text>💡 这是 MVP 演示，支付为模拟，不会真实扣款</text>
+        <text>这是 MVP 演示，支付为模拟，不会真实扣款</text>
       </view>
 
       <!-- 清台 / 换桌（顾客已离席，开启下一轮干净对话）-->
-      <view class="clear-table-btn" bindtap="clearTable">🧹 清台 / 换桌（顾客已离席）</view>
+      <view class="clear-table-btn" bindtap="clearTable">清台 / 换桌（顾客已离席）</view>
     </block>
   </scroll-view>
 </view>

@@ -17,7 +17,7 @@
 
     <!-- 错误 -->
     <view class="state-view" wx:elif="{{error}}">
-      <text class="state-icon">⚠️</text>
+      <text class="state-icon">提示</text>
       <text>{{error}}</text>
     </view>
 
@@ -49,7 +49,7 @@
               class="dish-row"
             >
               <view class="dish-emoji">
-                {{dish.spicy === '麻辣' ? '🌶️' : dish.spicy === '中辣' ? '🌶' : dish.spicy === '微辣' ? '🌶' : '🍽️'}}
+                {{dish.spicy}}
               </view>
               <view class="dish-content">
                 <view class="dish-name-row">
@@ -88,7 +88,7 @@
   <!-- 底部购物车栏 -->
   <view class="cart-bar" wx:if="{{!loading && !error}}">
     <view class="cart-icon-wrap" bindtap="toggleCart">
-      <view class="cart-icon {{cartCount > 0 ? 'active' : ''}}">🛒</view>
+      <view class="cart-icon {{cartCount > 0 ? 'active' : ''}}">购物车</view>
       <view class="cart-badge" wx:if="{{cartCount > 0}}">{{cartCount}}</view>
     </view>
     <view class="cart-info" bindtap="toggleCart">
