@@ -241,6 +241,62 @@ const util = {
     return this.inferCuisine(groups) || '本店';
   },
 
+  /** 编辑距离（短字符串，用于菜名同音字纠错） */
+  editDistance(a, b) {
+    if (a === b) return 0;
+    const m = a.length;
+    const n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    let prev = [];
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      }
+      prev = cur;
+    }
+    return prev[n];
+  },
+
+  /**
+   * 用当前菜单纠正语音识别里的菜名同音字（虾饺黄 → 虾饺皇、干炒牛和 → 干炒牛河）
+   * menuData: [{ name, items: [{ name }] }]
+   * 只对长度 >= 3 的菜名做编辑距离 1 的替换；2 字菜名不做模糊匹配，避免误伤
+   */
+  correctDishNames(text, menuData) {
+    const src = this.safeStr(text);
+    if (!src || !Array.isArray(menuData) || !menuData.length) return src;
+
+    const names = [];
+    menuData.forEach((cat) => {
+      (cat.items || []).forEach((d) => {
+        const n = this.safeStr(d && d.name).trim();
+        if (n && names.indexOf(n) < 0) names.push(n);
+      });
+    });
+    if (!names.length) return src;
+    names.sort((a, b) => b.length - a.length);
+
+    let out = src;
+    names.forEach((name) => {
+      if (out.indexOf(name) >= 0) return;
+      const L = name.length;
+      if (L < 3) return;
+      for (let i = 0; i + L <= out.length; i++) {
+        const seg = out.substr(i, L);
+        if (/[，。！？、,.!?\s]/.test(seg)) continue;
+        if (this.editDistance(seg, name) === 1) {
+          out = out.slice(0, i) + name + out.slice(i + L);
+          break;
+        }
+      }
+    });
+    return out;
+  },
+
   /** 把扁平菜单按分类顺序分组（保持后端返回的分类次序） */
   groupByCategory(groups) {
     return groups || [];

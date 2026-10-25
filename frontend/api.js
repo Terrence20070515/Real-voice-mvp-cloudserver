@@ -115,6 +115,33 @@ const api = {
   },
 
   /**
+   * 语音转文字（只要文字，不生成语音消息）：上传录音到 /api/asr → Promise<{text}>
+   */
+  asrUpload(filePath) {
+    var baseUrl = config.apiBaseUrl;
+    return new Promise((resolve, reject) => {
+      wx.uploadFile({
+        url: baseUrl + '/api/asr',
+        filePath: filePath,
+        name: 'file',
+        success: (res) => {
+          try {
+            var d = JSON.parse(res.data);
+            if (res.statusCode === 200) {
+              resolve(d);
+            } else {
+              reject(new Error(d.detail || '语音识别失败'));
+            }
+          } catch (e) {
+            reject(new Error('语音识别响应异常'));
+          }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '录音上传失败')),
+      });
+    });
+  },
+
+  /**
    * 发送语音消息：上传录音到 /api/voice，返回 Promise<{text, voice_url_full, duration}>
    * voice_url_full 是原声回放的完整 URL（后端存档的音频文件）
    */

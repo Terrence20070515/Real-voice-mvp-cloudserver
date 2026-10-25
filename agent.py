@@ -204,27 +204,35 @@ class DiningAgent:
         return self.conversations[session_id]
 
     def _restore_history(self, session_id: str) -> None:
-        """从文件恢复对话历史。云托管多实例时内存状态可能丢失。"""
+        """从文件恢复对话历史。云托管多实例时内存状态可能丢失。
+
+        🔒 存档中的 system 消息一律丢弃，用当前生成的 system 替换：
+        system 含店名与示例池（必须跟随当前菜单）。恢复旧 system 会导致
+        「换菜单后店名/风格倒退回旧店」——2026-10-25 实测：菜单已换粤菜，
+        持久化 session 恢复旧存档后顾客问好仍自称「川味小馆」。
+        """
         try:
             hist_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
             if os.path.exists(hist_file):
                 with open(hist_file, encoding="utf-8") as f:
                     saved = json.load(f)
-                if isinstance(saved, list) and len(saved) > 1:
-                    # 清理消息格式：确保每条消息都有 role 和 content
+                if isinstance(saved, list):
                     clean = []
                     for m in saved:
                         if not isinstance(m, dict):
                             continue
                         role = m.get("role")
-                        if not role:
+                        if not role or role == "system":
+                            # system 永远用当前生成的（当前店名 + 当前示例池）
                             continue
                         # 确保有 content 字段（即使为 None）
                         if "content" not in m:
                             m["content"] = None
                         clean.append(m)
-                    if len(clean) > 1:
-                        self.conversations[session_id] = clean
+                    if clean:
+                        # 当前生成的 system（_get_history 已先写入）保存在列表头部
+                        current_system = self.conversations[session_id][0]
+                        self.conversations[session_id] = [current_system] + clean
         except Exception:
             pass
 

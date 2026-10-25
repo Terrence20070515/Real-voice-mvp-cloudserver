@@ -31,6 +31,7 @@ Page({
     keyboardHeight: 0,
     showMorePanel: false,
     panelHeight: 0,  // +号面板实际高度（px）
+    voiceMode: false, // false=打字模式，true=长按说话模式（微信式切换）
 
     // 状态栏高度（动态获取）
     statusBarHeight: 20,  // 默认值，onLoad 时会更新
@@ -40,16 +41,7 @@ Page({
     navBarHeight: 64,     // 顶部导航栏总高度（statusBar + 内容）
     scrollHeight: 0,      // 聊天滚动区域高度（动态计算，核心！）
 
-    // 「+」面板：快捷指令
-    quickCommands: [
-      { text: '我吃辣的，没过敏' },
-      { text: '不辣的菜有哪些？' },
-      { text: '推荐几个招牌菜' },
-      { text: '人均 50 元以内' },
-      { text: '来一份汤' },
-      { text: '主食有什么' },
-      { text: '我花生过敏' }
-    ]
+    // 「+」面板只保留「清空对话」，快捷指令已移除
   },
 
   onLoad(options) {
@@ -224,23 +216,23 @@ Page({
           wx.showToast({ title: '说话时间太短', icon: 'none' });
           return;
         }
-        const durationSec = Math.max(1, Math.round((res.duration || 0) / 1000));
-        wx.showLoading({ title: '发送中…', mask: true });
+        wx.showLoading({ title: '识别中…', mask: true });
         api
-          .voiceUpload(res.tempFilePath, this.data.sessionId, res.duration || 0)
+          .asrUpload(res.tempFilePath)
           .then((d) => {
             wx.hideLoading();
-            const text = ((d && d.text) || '').trim();
-            if (!text) {
+            const raw = ((d && d.text) || '').trim();
+            if (!raw) {
               wx.showToast({ title: '未识别到内容，请重试', icon: 'none' });
               return;
             }
-            // 微信式语音消息：原声气泡立即展示，文字交给 AI 处理
-            this.sendContent(text, { voiceUrl: d.voice_url_full, durationSec: durationSec });
+            // 按菜单纠正同音字（虾饺黄 → 虾饺皇），再以文字消息发送
+            const text = util.correctDishNames(raw, this.data.menuData);
+            this.sendContent(text, null);
           })
           .catch((e) => {
             wx.hideLoading();
-            wx.showToast({ title: e.message || '语音发送失败', icon: 'none' });
+            wx.showToast({ title: e.message || '语音识别失败', icon: 'none' });
           });
       });
       this.recorder.onError(() => {
@@ -259,6 +251,22 @@ Page({
       this.voiceReady = false;
       console.warn('语音初始化失败:', e);
     }
+  },
+
+  // ─── 语音 / 键盘切换（微信式：点一下切语音，再点回打字）───
+  toggleInputMode() {
+    if (this.data.recording) return;
+    const next = !this.data.voiceMode;
+    this.setData({ voiceMode: next, showMorePanel: false });
+    if (next) {
+      // 切到语音：收起键盘
+      wx.hideKeyboard();
+      this.setData({ inputFocus: false });
+    } else {
+      // 切回打字：让输入框拿到焦点
+      setTimeout(() => this.setData({ inputFocus: true }), 120);
+    }
+    this.scrollToBottom();
   },
 
   voiceStart() {
@@ -313,7 +321,7 @@ Page({
     const rpxToPx = sysInfo.windowWidth / 750;
     if (show) {
       wx.hideKeyboard();
-      const panelH = Math.round(480 * rpxToPx);
+      const panelH = Math.round(160 * rpxToPx);   // 与 .extra-panel.panel-show 的 max-height 保持一致
       // 面板打开：滚动区再缩小 panelHeight
       const scrollH = sysInfo.windowHeight - this.data.inputBarHeight - panelH;
       this.setData({ showMorePanel: show, panelHeight: panelH, scrollHeight: scrollH });
@@ -323,12 +331,6 @@ Page({
       this.setData({ showMorePanel: show, panelHeight: 0, scrollHeight: scrollH });
     }
     this.scrollToBottom();
-  },
-
-  sendQuickCommand(e) {
-    const text = e.currentTarget.dataset.text;
-    this.setData({ inputValue: text, showMorePanel: false });
-    setTimeout(() => this.sendMsg(), 80);
   },
 
   // ─── 发送消息 ───

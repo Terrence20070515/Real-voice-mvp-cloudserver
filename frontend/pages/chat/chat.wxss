@@ -29,19 +29,31 @@
 .top-btns {
   display: flex;
   align-items: center;
-  gap: 6rpx;
+  gap: 10rpx;
+  flex-shrink: 0;
 }
 
 .back-btn,
 .menu-btn {
-  width: 60rpx;
   height: 60rpx;
+  min-width: 60rpx;
+  padding: 0 20rpx;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 32rpx;
+  border-radius: 30rpx;
+  font-size: 26rpx;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.2);
+}
+
+.back-btn {
+  width: 60rpx;
+  padding: 0;
+  font-size: 34rpx;
 }
 
 .back-btn:active,
@@ -49,11 +61,20 @@
   background: rgba(255, 255, 255, 0.35);
 }
 
+.tts-on {
+  background: rgba(255, 255, 255, 0.42);
+}
+
 .top-title {
+  flex: 1;
+  min-width: 0;
+  margin-left: 16rpx;
   font-size: 30rpx;
   font-weight: bold;
-  letter-spacing: 2rpx;
-  margin-left: 20rpx;
+  letter-spacing: 1rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ============ 聊天滚动区域 ============ */
@@ -210,14 +231,14 @@
   height: 1rpx;
 }
 
-/* ============ 底部输入栏（微信风格）============ */
+/* ============ 底部输入栏（圆形按钮 + 药丸输入框）============ */
 .input-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  background: #f7f7f7;
-  border-top: 1rpx solid #dcdcdc;
+  background: #ffffff;
+  border-top: 1rpx solid #ececec;
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 200;
   transition: padding-bottom 0.2s ease-out;
@@ -226,50 +247,145 @@
 .input-row {
   display: flex;
   align-items: flex-end;
-  padding: 16rpx 20rpx;
-  gap: 14rpx;
+  padding: 16rpx 22rpx;
+  gap: 16rpx;
   min-height: 100rpx;
 }
 
-/* 圆形图标按钮（表情 / + 号）*/
-.icon-btn {
-  width: 72rpx;
-  height: 72rpx;
+/* 圆形按钮（语音 / +） */
+.round-btn {
+  width: 76rpx;
+  height: 76rpx;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 44rpx;
+  border: 2rpx solid #141719;
+  border-radius: 50%;
   background: #fff;
-  border-radius: 8rpx;
-  margin-bottom: 4rpx;
+  color: #141719;
+  margin-bottom: 2rpx;
   user-select: none;
+  box-sizing: border-box;
 }
 
-.icon-btn:active {
-  background: #ebebeb;
+.round-btn:active {
+  background: #f2f3f4;
 }
 
-/* 输入框容器（微信白色方块）*/
+.round-btn-recording {
+  background: #141719;
+  color: #fff;
+}
+
+/* 麦克风图标（纯 CSS 绘制，无图片、无 emoji） */
+.mic-icon {
+  width: 34rpx;
+  height: 34rpx;
+  position: relative;
+}
+
+.mic-icon::before {
+  content: '';
+  position: absolute;
+  left: 11rpx;
+  top: 2rpx;
+  width: 12rpx;
+  height: 18rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 7rpx;
+  box-sizing: border-box;
+}
+
+.mic-icon::after {
+  content: '';
+  position: absolute;
+  left: 5rpx;
+  top: 13rpx;
+  width: 24rpx;
+  height: 12rpx;
+  border: 3rpx solid currentColor;
+  border-top-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-radius: 0 0 12rpx 12rpx;
+  box-sizing: border-box;
+}
+
+.plus-icon {
+  font-size: 46rpx;
+  line-height: 1;
+  font-weight: 300;
+  color: inherit;
+}
+
+/* 键盘图标（语音模式下切回打字） */
+.kb-icon {
+  width: 34rpx;
+  height: 24rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 6rpx;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.kb-icon::before {
+  content: '';
+  position: absolute;
+  left: 4rpx;
+  top: 4rpx;
+  width: 4rpx;
+  height: 4rpx;
+  border-radius: 1rpx;
+  background: currentColor;
+  box-shadow: 7rpx 0 currentColor, 14rpx 0 currentColor,
+              0 7rpx currentColor, 7rpx 7rpx currentColor, 14rpx 7rpx currentColor;
+}
+
+/* 按住说话（语音模式占位条） */
+.hold-talk {
+  flex: 1;
+  height: 76rpx;
+  margin-bottom: 2rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 2rpx solid #e6e6e6;
+  border-radius: 38rpx;
+  font-size: 30rpx;
+  color: #141719;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hold-talk-recording {
+  background: #141719;
+  border-color: #141719;
+  color: #fff;
+}
+
+/* 输入框容器（药丸） */
 .input-box {
   flex: 1;
   background: #fff;
-  border-radius: 8rpx;
-  padding: 14rpx 20rpx;
-  min-height: 72rpx;
+  border: 2rpx solid #e6e6e6;
+  border-radius: 38rpx;
+  padding: 10rpx 26rpx;
+  min-height: 76rpx;
   max-height: 220rpx;
   overflow-y: auto;
-  margin-bottom: 4rpx;
+  margin-bottom: 2rpx;
   box-sizing: border-box;
 }
 
 /* textarea 自适应高度 */
 .input-textarea {
   width: 100%;
-  min-height: 44rpx;
+  min-height: 52rpx;
   max-height: 180rpx;
   font-size: 32rpx;
-  line-height: 1.4;
+  line-height: 1.5;
   color: #333;
   word-break: break-all;
 }
@@ -279,20 +395,20 @@
   font-size: 32rpx;
 }
 
-/* 发送按钮（微信绿）*/
+/* 发送按钮 */
 .send-btn {
-  background: #07c160;
+  background: #141719;
   color: #fff;
-  padding: 0 28rpx;
-  height: 72rpx;
-  border-radius: 8rpx;
+  padding: 0 30rpx;
+  height: 76rpx;
+  border-radius: 38rpx;
   font-size: 30rpx;
-  margin-bottom: 4rpx;
+  margin-bottom: 2rpx;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 110rpx;
+  min-width: 108rpx;
 }
 
 .send-btn.disabled {
@@ -301,10 +417,10 @@
 }
 
 .send-btn:active {
-  background: #06ad56;
+  background: #2b3034;
 }
 
-/* ============ 扩展面板（+号快捷指令）============ */
+/* ============ 扩展面板（只保留清空对话）============ */
 .extra-panel {
   position: fixed;
   left: 0;
@@ -319,56 +435,26 @@
 }
 
 .extra-panel.panel-show {
-  max-height: 480rpx;
+  max-height: 160rpx;
 }
 
-.panel-scroll {
-  height: 100%;
+.panel-list {
+  padding: 8rpx 0;
 }
 
-/* 快捷指令面板 */
-.quick-grid {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 30rpx 20rpx;
-  gap: 30rpx 0;
+.panel-row {
+  padding: 30rpx 34rpx;
+  font-size: 30rpx;
+  color: #333;
 }
 
-.quick-item {
-  width: 25%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
+.panel-row:active {
+  background: #ececec;
 }
 
-.quick-item:active .quick-icon {
-  background: #ebebeb;
-}
-
-.quick-icon {
-  width: 110rpx;
-  height: 110rpx;
-  background: #fff;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 52rpx;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
-}
-
-.quick-icon-danger {
-  background: #ffebee;
-}
-
-.quick-text {
-  font-size: 22rpx;
-  color: #666;
-  text-align: center;
-  line-height: 1.3;
-  max-width: 140rpx;
-  word-break: break-all;
+.panel-row-text {
+  font-size: 30rpx;
+  color: #333;
 }
 
 /* ============ 菜单浮窗 ============ */
@@ -522,24 +608,6 @@
 }
 
 /* ─── 语音输入 ─── */
-.voice-btn {
-  flex-shrink: 0;
-  height: 72rpx;
-  line-height: 72rpx;
-  padding: 0 22rpx;
-  border-radius: 8rpx;
-  background: #eef0f2;
-  color: #141719;
-  font-size: 26rpx;
-  text-align: center;
-  margin-bottom: 4rpx;
-}
-
-.voice-btn-recording {
-  background: #141719;
-  color: #fff;
-}
-
 .voice-status {
   display: flex;
   align-items: center;

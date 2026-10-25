@@ -5,7 +5,6 @@
     <view class="top-btns">
       <view class="back-btn" bindtap="goBack">‹</view>
       <view class="menu-btn" bindtap="toggleMenu">菜单</view>
-      <view class="menu-btn tts-toggle {{voiceReplyOn ? 'tts-on' : ''}}" bindtap="toggleVoiceReply">播报{{voiceReplyOn ? '开' : '关'}}</view>
     </view>
     <view class="top-title">AI 点餐助手</view>
   </view>
@@ -66,54 +65,46 @@
     </view>
   </scroll-view>
 
-  <!-- 「+」面板：快捷指令（fixed 定位，紧贴输入栏上方） -->
+  <!-- 「+」面板：只保留「清空对话」 -->
   <view class="extra-panel {{showMorePanel ? 'panel-show' : ''}}" style="bottom: {{inputBarHeight}}px;">
-    <scroll-view scroll-y class="panel-scroll">
-      <view class="quick-grid">
-        <view
-          wx:for="{{quickCommands}}"
-          wx:key="text"
-          class="quick-item"
-          data-text="{{item.text}}"
-          bindtap="sendQuickCommand"
-        >
-          <text class="quick-text">{{item.text}}</text>
-        </view>
-        <!-- 清空对话（同桌重开，保留订单）-->
-        <view class="quick-item" bindtap="clearChat">
-          <text class="quick-text">清空对话</text>
-        </view>
-
-        <!-- 清台 / 换桌（顾客已离席，彻底重置）-->
-        <view class="quick-item" bindtap="clearTable">
-          <text class="quick-text">清台 / 换桌</text>
-        </view>
+    <view class="panel-list">
+      <view class="panel-row" bindtap="clearChat">
+        <text class="panel-row-text">清空对话</text>
       </view>
-    </scroll-view>
+    </view>
   </view>
 
-  <!-- 底部输入栏（微信风格） -->
+  <!-- 底部输入栏（圆形按钮 + 药丸输入框） -->
   <view class="input-bar" style="padding-bottom: {{keyboardHeight}}px;">
     <!-- 语音识别状态条 -->
     <view wx:if="{{recording}}" class="voice-status">
       <view class="voice-dot"></view>
-      <text>正在聆听，请说出想点的菜…松手后转文字</text>
+      <text>正在聆听，请说出想点的菜…松手后自动发送文字</text>
     </view>
     <view class="input-row" id="inputRow">
-      <!-- 按住说话：识别文字填入输入框，用户确认后再发送 -->
+      <!-- 左：语音 / 键盘切换（点一下切到长按语音，再点回打字） -->
+      <view class="round-btn" bindtap="toggleInputMode">
+        <view wx:if="{{voiceMode}}" class="kb-icon"></view>
+        <view wx:else class="mic-icon"></view>
+      </view>
+
+      <!-- 语音模式：长按说话，松手转文字并发送 -->
       <view
-        class="voice-btn {{recording ? 'voice-btn-recording' : ''}}"
+        wx:if="{{voiceMode}}"
+        class="hold-talk {{recording ? 'hold-talk-recording' : ''}}"
         bindtouchstart="voiceStart"
         bindtouchend="voiceEnd"
         bindtouchcancel="voiceEnd"
-      >{{recording ? '松开 转文字' : '按住 说话'}}</view>
-      <!-- 输入框区域：textarea 支持多行 + 自动高度 -->
-      <view class="input-box">
+      >{{recording ? '松开 发送' : '按住 说话'}}</view>
+
+      <!-- 打字模式：textarea 支持多行 + 自动高度 -->
+      <view wx:else class="input-box">
         <textarea
           class="input-textarea"
           placeholder="发消息..."
           placeholder-class="input-placeholder"
           value="{{inputValue}}"
+          focus="{{inputFocus}}"
           bindinput="onInput"
           bindfocus="onInputFocus"
           bindblur="onInputBlur"
@@ -128,14 +119,14 @@
         />
       </view>
 
-      <!-- 发送按钮 / + 号按钮：输入文字时才显示发送 -->
+      <!-- 右侧：有文字时是发送；否则是 +（面板里只有清空对话） -->
       <view
-        wx:if="{{inputValue.length > 0}}"
+        wx:if="{{!voiceMode && inputValue.length > 0}}"
         class="send-btn {{isLoading ? 'disabled' : ''}}"
         bindtap="sendMsg"
       >{{isLoading ? '...' : '发送'}}</view>
-      <view wx:else class="icon-btn" bindtap="toggleMorePanel">
-        {{showMorePanel ? '×' : '+'}}
+      <view wx:else class="round-btn" bindtap="toggleMorePanel">
+        <text class="plus-icon">{{showMorePanel ? '×' : '+'}}</text>
       </view>
     </view>
   </view>
