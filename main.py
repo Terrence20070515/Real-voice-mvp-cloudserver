@@ -4,7 +4,7 @@ import os
 import threading
 import time as _time
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -214,6 +214,41 @@ def api_checkout_session(session_id: str):
 class MenuImportRequest(BaseModel):
     restaurant: str | None = None
     categories: list
+
+
+@app.post("/api/asr")
+def api_asr(file: UploadFile = File(...)):
+    """语音转文字：录音文件上传 → ASR 服务 → 文本（语音输入功能）。
+
+    ASR 引擎可插拔（环境变量）：默认 SiliconFlow SenseVoice（OpenAI 兼容格式，免费额度）；
+    未配置 ASR_API_KEY 时返回 503 并附指引。
+    """
+    api_key = os.getenv("ASR_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="语音识别未配置：请设置 ASR_API_KEY 环境变量")
+    audio = file.file.read()
+    if not audio:
+        raise HTTPException(status_code=400, detail="音频内容为空")
+    if len(audio) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="音频超过 8MB 上限")
+    base = os.getenv("ASR_BASE_URL", "https://api.siliconflow.cn/v1")
+    model = os.getenv("ASR_MODEL", "FunAudioLLM/SenseVoiceSmall")
+    try:
+        resp = requests.post(
+            f"{base}/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={"file": (file.filename or "voice.mp3", audio, file.content_type or "audio/mpeg")},
+            data={"model": model},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        text = (resp.json().get("text") or "").strip()
+        return {"text": text}
+    except requests.HTTPError as e:
+        detail = e.response.text[:150] if e.response is not None else str(e)
+        raise HTTPException(status_code=502, detail=f"ASR 服务错误: {detail}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"语音识别失败: {e}")
 
 
 @app.post("/api/menu/import")

@@ -175,52 +175,65 @@ Page({
     return result;
   },
 
-  // ─── 语音输入（微信同声传译插件 WechatSI）───
-  // 设计：按住说话 → 实时识别文字进输入框 → 用户确认后手动发送。
+  // ─── 语音输入（录音上传 → 后端 /api/asr → 文字）───
+  // 设计：按住说话 → 录音 mp3 → 上传转文字 → 文字进输入框 → 用户确认后手动发送。
   // 不自动发送：嘈杂环境下 ASR 可能误识别，确认一步防止点错菜。
   initVoice() {
     try {
-      const plugin = requirePlugin('WechatSI');
-      const manager = plugin.getRecordRecognitionManager();
-      manager.onRecognize((res) => {
-        // 中间识别结果实时进输入框，用户可见识别过程
-        if (res && res.result) this.setData({ inputValue: res.result });
+      this.recorder = wx.getRecorderManager();
+      this.recorder.onStart(() => {
+        this.setData({ recording: true });
       });
-      manager.onStop((res) => {
+      this.recorder.onStop((res) => {
         this.setData({ recording: false });
-        const text = ((res && res.result) || '').trim();
-        if (text) this.setData({ inputValue: text });
-      });
-      manager.onError((res) => {
-        this.setData({ recording: false });
-        // 1003: 用户拒绝麦克风授权 → 引导去设置开启
-        if (res && res.retcode === 1003) {
-          wx.showModal({
-            title: '需要麦克风权限',
-            content: '请在设置中开启麦克风权限后使用语音点菜',
-            confirmText: '去设置',
-            success: (r) => { if (r.confirm) wx.openSetting(); },
-          });
+        if (!res || !res.tempFilePath) return;
+        if ((res.duration || 0) < 500) {
+          wx.showToast({ title: '说话时间太短', icon: 'none' });
           return;
         }
-        wx.showToast({ title: '语音识别不可用，请打字输入', icon: 'none' });
+        wx.showLoading({ title: '识别中…', mask: true });
+        api
+          .asrUpload(res.tempFilePath)
+          .then((d) => {
+            wx.hideLoading();
+            const text = ((d && d.text) || '').trim();
+            if (text) {
+              this.setData({ inputValue: text });  // 确认式：进输入框不自动发
+            } else {
+              wx.showToast({ title: '未识别到内容，请重试', icon: 'none' });
+            }
+          })
+          .catch((e) => {
+            wx.hideLoading();
+            wx.showToast({ title: e.message || '语音识别失败', icon: 'none' });
+          });
       });
-      this.voiceManager = manager;
+      this.recorder.onError(() => {
+        this.setData({ recording: false });
+        wx.hideLoading();
+        // 多为 scope.record 麦克风授权被拒 → 引导去设置开启
+        wx.showModal({
+          title: '需要麦克风权限',
+          content: '请在设置中开启麦克风权限后使用语音点菜',
+          confirmText: '去设置',
+          success: (r) => { if (r.confirm) wx.openSetting(); },
+        });
+      });
+      this.voiceReady = true;
     } catch (e) {
-      // 插件未生效（后台未添加插件/基础库过低）时隐藏语音入口
-      this.setData({ voiceAvailable: false });
-      console.warn('WechatSI 插件不可用:', e);
+      this.voiceReady = false;
+      console.warn('语音初始化失败:', e);
     }
   },
 
   voiceStart() {
-    if (this.data.isLoading || this.data.recording || !this.voiceManager) return;
-    this.setData({ recording: true, inputValue: '' });
-    this.voiceManager.start({ lang: 'zh_CN', duration: 30000 });
+    if (this.data.isLoading || this.data.recording || !this.voiceReady) return;
+    // mp3 + 16k 采样：ASR 友好且文件小
+    this.recorder.start({ format: 'mp3', duration: 60000, sampleRate: 16000, encodeBitRate: 48000 });
   },
 
   voiceEnd() {
-    if (this.data.recording && this.voiceManager) this.voiceManager.stop();
+    if (this.data.recording && this.recorder) this.recorder.stop();
   },
 
   // ─── 输入框 ───

@@ -115,6 +115,33 @@ const api = {
   },
 
   /**
+   * 语音转文字：上传录音文件到 /api/asr，返回 Promise<{text}>
+   */
+  asrUpload(filePath) {
+    var baseUrl = config.apiBaseUrl;
+    return new Promise((resolve, reject) => {
+      wx.uploadFile({
+        url: baseUrl + '/api/asr',
+        filePath: filePath,
+        name: 'file',
+        success: (res) => {
+          try {
+            var d = JSON.parse(res.data);
+            if (res.statusCode === 200) {
+              resolve(d);
+            } else {
+              reject(new Error(d.detail || '语音识别失败'));
+            }
+          } catch (e) {
+            reject(new Error('语音识别响应异常'));
+          }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '录音上传失败')),
+      });
+    });
+  },
+
+  /**
    * AI 对话（走公网 HTTP，不受 callContainer 15 秒限制）
    * 当配置了 cloudPublicUrl 时自动使用公网地址
    */
