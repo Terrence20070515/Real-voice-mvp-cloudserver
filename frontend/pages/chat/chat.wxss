@@ -561,3 +561,14 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.3; transform: scale(0.8); }
 }
+
+/* ─── 语音播报开关 ─── */
+.tts-toggle {
+  opacity: 0.6;
+}
+
+.tts-toggle.tts-on {
+  opacity: 1;
+  background: rgba(212, 35, 44, 0.85);
+  color: #fff;
+}

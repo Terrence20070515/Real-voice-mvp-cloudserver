@@ -142,6 +142,32 @@ const api = {
   },
 
   /**
+   * 文字转语音：POST /api/tts，返回 Promise<arraybuffer>（mp3 音频数据）
+   */
+  tts(text) {
+    var baseUrl = config.apiBaseUrl;
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: baseUrl + '/api/tts',
+        method: 'POST',
+        data: { text: text },
+        responseType: 'arraybuffer',
+        header: { 'Content-Type': 'application/json' },
+        success: (res) => {
+          if (res.statusCode === 200) {
+            resolve(res.data);
+          } else {
+            var msg = '语音合成失败';
+            try { msg = JSON.parse(res.data).detail || msg; } catch (e) {}
+            reject(new Error(msg));
+          }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || 'TTS 请求失败')),
+      });
+    });
+  },
+
+  /**
    * AI 对话（走公网 HTTP，不受 callContainer 15 秒限制）
    * 当配置了 cloudPublicUrl 时自动使用公网地址
    */

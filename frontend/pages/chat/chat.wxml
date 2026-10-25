@@ -5,6 +5,7 @@
     <view class="top-btns">
       <view class="back-btn" bindtap="goBack">‹</view>
       <view class="menu-btn" bindtap="toggleMenu">菜单</view>
+      <view class="menu-btn tts-toggle {{voiceReplyOn ? 'tts-on' : ''}}" bindtap="toggleVoiceReply">播报{{voiceReplyOn ? '开' : '关'}}</view>
     </view>
     <view class="top-title">AI 点餐助手</view>
   </view>

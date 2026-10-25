@@ -18,6 +18,7 @@ Page({
   data: {
     messages: [],
     inputValue: '',
+    voiceReplyOn: false,  // 语音播报开关：开启后 AI 回复自动转语音播放
     sessionId: '',
     isLoading: false,
     showMenu: false,
@@ -175,6 +176,38 @@ Page({
     return result;
   },
 
+  // ─── 语音播报（TTS）───
+  toggleVoiceReply() {
+    const on = !this.data.voiceReplyOn;
+    this.setData({ voiceReplyOn: on });
+    wx.showToast({ title: on ? '语音播报已开启' : '语音播报已关闭', icon: 'none' });
+    if (!on && this.audioCtx) {
+      this.audioCtx.stop();  // 关闭时停止正在播放的语音
+    }
+  },
+
+  speakReply(reply) {
+    // TTS 播报失败静默降级（文字回复已经可见，语音只是增强）
+    api
+      .tts(reply)
+      .then((audioBuffer) => {
+        const fs = wx.getFileSystemManager();
+        const path = `${wx.env.USER_DATA_PATH}/tts_reply.mp3`;
+        fs.writeFile({
+          filePath: path,
+          data: audioBuffer,
+          encoding: 'binary',
+          success: () => {
+            if (this.audioCtx) this.audioCtx.destroy();
+            this.audioCtx = wx.createInnerAudioContext();
+            this.audioCtx.src = path;
+            this.audioCtx.play();
+          },
+        });
+      })
+      .catch(() => {});
+  },
+
   // ─── 语音输入（录音上传 → 后端 /api/asr → 文字）───
   // 设计：按住说话 → 录音 mp3 → 上传转文字 → 文字进输入框 → 用户确认后手动发送。
   // 不自动发送：嘈杂环境下 ASR 可能误识别，确认一步防止点错菜。
@@ -197,11 +230,13 @@ Page({
           .then((d) => {
             wx.hideLoading();
             const text = ((d && d.text) || '').trim();
-            if (text) {
-              this.setData({ inputValue: text });  // 确认式：进输入框不自动发
-            } else {
+            if (!text) {
               wx.showToast({ title: '未识别到内容，请重试', icon: 'none' });
+              return;
             }
+            // 语音直发：识别即发送（识别质量已达标，免二次编辑）
+            this.setData({ inputValue: text });
+            this.sendMsg();
           })
           .catch((e) => {
             wx.hideLoading();
@@ -311,6 +346,8 @@ Page({
           // 检测是否包含订单信息
           const hasOrder = detectOrderInReply(reply);
           this.addMessage(reply, 'assistant', hasOrder);
+          // 语音播报模式：开启后 AI 回复自动转语音播放（准电话体验）
+          if (this.data.voiceReplyOn) this.speakReply(reply);
         } else {
           this.addMessage('（AI 没有返回内容，请重试）', 'assistant');
         }

@@ -6,7 +6,7 @@ import time as _time
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
@@ -249,6 +249,39 @@ def api_asr(file: UploadFile = File(...)):
         raise HTTPException(status_code=502, detail=f"ASR 服务错误: {detail}")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"语音识别失败: {e}")
+
+
+@app.post("/api/tts")
+def api_tts(req: dict):
+    """文字转语音：回复文本 → TTS → mp3 音频（语音播报模式用）。
+
+    与 ASR 共用 SiliconFlow key；CosyVoice2 按字符计费，点餐短回复成本可忽略。
+    """
+    api_key = os.getenv("ASR_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="语音服务未配置：请设置 ASR_API_KEY")
+    text = (req.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="文本为空")
+    if len(text) > 500:
+        text = text[:500]  # 点餐回复短文本，截断防滥用
+    base = os.getenv("ASR_BASE_URL", "https://api.siliconflow.cn/v1")
+    tts_model = os.getenv("TTS_MODEL", "FunAudioLLM/CosyVoice2-0.5B")
+    voice = os.getenv("TTS_VOICE", f"{tts_model}:anna")  # 预置女声音色，适合服务场景
+    try:
+        resp = requests.post(
+            f"{base}/audio/speech",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": tts_model, "input": text, "voice": voice, "response_format": "mp3"},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return Response(content=resp.content, media_type="audio/mpeg")
+    except requests.HTTPError as e:
+        detail = e.response.text[:150] if e.response is not None else str(e)
+        raise HTTPException(status_code=502, detail=f"TTS 服务错误: {detail}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"语音合成失败: {e}")
 
 
 @app.post("/api/menu/import")

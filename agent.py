@@ -19,6 +19,7 @@ from tools import TOOL_DEFINITIONS, TOOL_MAP
 _WRITE_TOOLS = {"create_order", "add_to_order", "replace_item", "delete_item", "checkout_session"}
 
 SYSTEM_PROMPT_TMPL = """你是{restaurant}的AI点餐助手，负责协助顾客完成点餐流程。
+【语言规则】始终使用与顾客相同的语言回复：顾客用中文问就用中文答，用英文问就用英文答，以此类推；菜名等专名按菜单原文呈现。
 
 ## 核心能力
 - 所有菜品信息必须通过工具 `get_menu` 或 `recommend_dishes` 查询，不得自行编造菜品、价格或描述
