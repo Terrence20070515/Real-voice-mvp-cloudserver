@@ -1,10 +1,11 @@
 """Real Voice MVP — 后端 API"""
 import json
 import os
+import re
 import threading
 import time as _time
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -14,7 +15,7 @@ import requests
 
 from agent import DiningAgent
 from tools import query_menu_list, list_orders, pay_order, clear_orders, delete_legacy_orders, checkout_session
-from config import MENU_FILE, TRAINING_EXAMPLES_FILE
+from config import MENU_FILE, TRAINING_EXAMPLES_FILE, VOICES_DIR
 
 app = FastAPI(title="Real Voice MVP", version="1.0.14")
 agent = DiningAgent()
@@ -216,17 +217,11 @@ class MenuImportRequest(BaseModel):
     categories: list
 
 
-@app.post("/api/asr")
-def api_asr(file: UploadFile = File(...)):
-    """语音转文字：录音文件上传 → ASR 服务 → 文本（语音输入功能）。
-
-    ASR 引擎可插拔（环境变量）：默认 SiliconFlow SenseVoice（OpenAI 兼容格式，免费额度）；
-    未配置 ASR_API_KEY 时返回 503 并附指引。
-    """
+def _asr_transcribe(audio: bytes, filename: str = "voice.mp3", content_type: str = "audio/mpeg") -> str:
+    """调 ASR 服务把音频转文字（SiliconFlow SenseVoice，OpenAI 兼容格式）。"""
     api_key = os.getenv("ASR_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=503, detail="语音识别未配置：请设置 ASR_API_KEY 环境变量")
-    audio = file.file.read()
     if not audio:
         raise HTTPException(status_code=400, detail="音频内容为空")
     if len(audio) > 8 * 1024 * 1024:
@@ -237,18 +232,62 @@ def api_asr(file: UploadFile = File(...)):
         resp = requests.post(
             f"{base}/audio/transcriptions",
             headers={"Authorization": f"Bearer {api_key}"},
-            files={"file": (file.filename or "voice.mp3", audio, file.content_type or "audio/mpeg")},
+            files={"file": (filename, audio, content_type)},
             data={"model": model},
             timeout=60,
         )
         resp.raise_for_status()
-        text = (resp.json().get("text") or "").strip()
-        return {"text": text}
+        return (resp.json().get("text") or "").strip()
     except requests.HTTPError as e:
         detail = e.response.text[:150] if e.response is not None else str(e)
         raise HTTPException(status_code=502, detail=f"ASR 服务错误: {detail}")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"语音识别失败: {e}")
+
+
+@app.post("/api/asr")
+def api_asr(file: UploadFile = File(...)):
+    """语音转文字：录音文件上传 → ASR 服务 → 文本（纯转写接口）。"""
+    return {"text": _asr_transcribe(file.file.read(), file.filename or "voice.mp3",
+                                    file.content_type or "audio/mpeg")}
+
+
+@app.post("/api/voice")
+def api_voice(
+    file: UploadFile = File(...),
+    session_id: str = Form(""),
+    duration_ms: int = Form(0),
+):
+    """微信式语音消息：存原声（供回放）→ ASR 转文字（供 LLM 理解）。
+
+    返回 {text, voice_url, duration}——前端以语音气泡展示原声，文字交给 AI 处理。
+    """
+    audio = file.file.read()
+    if not audio:
+        raise HTTPException(status_code=400, detail="音频内容为空")
+    if len(audio) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="音频超过 8MB 上限")
+    sid = "".join(ch for ch in session_id if ch.isalnum() or ch in "_-")[:60] or "unknown"
+    ts = int(_time.time() * 1000)
+    vdir = os.path.join(VOICES_DIR, sid)
+    os.makedirs(vdir, exist_ok=True)
+    fname = f"{ts}.mp3"
+    with open(os.path.join(vdir, fname), "wb") as f:
+        f.write(audio)
+    text = _asr_transcribe(audio, file.filename or "voice.mp3", file.content_type or "audio/mpeg")
+    duration_sec = max(1, round(duration_ms / 1000))
+    return {"text": text, "voice_url": f"/api/voice/file/{sid}/{fname}", "duration": duration_sec}
+
+
+@app.get("/api/voice/file/{session_id}/{filename}")
+def api_voice_file(session_id: str, filename: str):
+    """语音消息回放（音频文件静态服务，路径白名单校验防穿越）。"""
+    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,60}", session_id) or not re.fullmatch(r"\d{13,15}\.mp3", filename):
+        raise HTTPException(status_code=400, detail="非法路径")
+    path = os.path.join(VOICES_DIR, session_id, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="语音不存在")
+    return FileResponse(path, media_type="audio/mpeg")
 
 
 @app.post("/api/tts")

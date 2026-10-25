@@ -28,7 +28,17 @@
             {{item.role === 'user' ? '我' : 'AI'}}
           </view>
           <view class="msg-wrapper">
-            <view class="msg-bubble">{{item.content}}</view>
+            <view
+              class="msg-bubble {{item.isVoice ? 'voice-bubble' : ''}}"
+              data-url="{{item.voiceUrl}}"
+              catchtap="{{item.isVoice ? 'playVoice' : ''}}"
+            >
+              <block wx:if="{{item.isVoice}}">
+                <view class="voice-tri"></view>
+                <text class="voice-len">{{item.duration}}″</text>
+              </block>
+              <block wx:else>{{item.content}}</block>
+            </view>
             <!-- AI 回复里如果提到订单号，显示「去结账」按钮 -->
             <view
               wx:if="{{item.role === 'assistant' && item.hasOrder}}"

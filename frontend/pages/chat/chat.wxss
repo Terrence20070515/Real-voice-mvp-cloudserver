@@ -572,3 +572,24 @@
   background: rgba(212, 35, 44, 0.85);
   color: #fff;
 }
+
+/* ─── 语音气泡（微信风格：三角播放键 + 时长）─── */
+.msg-bubble.voice-bubble {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 160rpx;
+}
+
+.voice-tri {
+  width: 0;
+  height: 0;
+  border-top: 12rpx solid transparent;
+  border-bottom: 12rpx solid transparent;
+  border-left: 18rpx solid #333;
+}
+
+.voice-len {
+  font-size: 26rpx;
+  color: #666;
+}

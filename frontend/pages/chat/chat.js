@@ -224,9 +224,10 @@ Page({
           wx.showToast({ title: '说话时间太短', icon: 'none' });
           return;
         }
-        wx.showLoading({ title: '识别中…', mask: true });
+        const durationSec = Math.max(1, Math.round((res.duration || 0) / 1000));
+        wx.showLoading({ title: '发送中…', mask: true });
         api
-          .asrUpload(res.tempFilePath)
+          .voiceUpload(res.tempFilePath, this.data.sessionId, res.duration || 0)
           .then((d) => {
             wx.hideLoading();
             const text = ((d && d.text) || '').trim();
@@ -234,13 +235,12 @@ Page({
               wx.showToast({ title: '未识别到内容，请重试', icon: 'none' });
               return;
             }
-            // 语音直发：识别即发送（识别质量已达标，免二次编辑）
-            this.setData({ inputValue: text });
-            this.sendMsg();
+            // 微信式语音消息：原声气泡立即展示，文字交给 AI 处理
+            this.sendContent(text, { voiceUrl: d.voice_url_full, durationSec: durationSec });
           })
           .catch((e) => {
             wx.hideLoading();
-            wx.showToast({ title: e.message || '语音识别失败', icon: 'none' });
+            wx.showToast({ title: e.message || '语音发送失败', icon: 'none' });
           });
       });
       this.recorder.onError(() => {
@@ -336,8 +336,20 @@ Page({
     const content = (this.data.inputValue || '').trim();
     if (!content || this.data.isLoading) return;
 
-    this.addMessage(content, 'user');
-    this.setData({ inputValue: '', isLoading: true });
+    this.setData({ inputValue: '' });
+    this.sendContent(content, null);
+  },
+
+  // 发送文本内容（voice 非空时，用户消息以语音气泡展示原声）
+  sendContent(content, voice) {
+    if (!content || this.data.isLoading) return;
+
+    if (voice) {
+      this.addVoiceMessage(voice.voiceUrl, voice.durationSec, content);
+    } else {
+      this.addMessage(content, 'user');
+    }
+    this.setData({ isLoading: true });
 
     api
       .chat({ sessionId: this.data.sessionId, message: content })
@@ -374,6 +386,27 @@ Page({
   },
 
   // 添加一条消息到列表
+  addVoiceMessage(voiceUrl, durationSec, text) {
+    const time = util.formatTime();
+    const list = this.data.messages;
+    list.push({
+      id: 'msg' + Date.now(), role: 'user', content: text, time,
+      isVoice: true, voiceUrl: voiceUrl, duration: durationSec,
+    });
+    this.setData({ messages: list });
+    this.scrollToBottom();
+  },
+
+  // 点击语音气泡回放原声
+  playVoice(e) {
+    const url = e.currentTarget.dataset.url;
+    if (!url) return;
+    if (this.audioCtx) this.audioCtx.destroy();
+    this.audioCtx = wx.createInnerAudioContext();
+    this.audioCtx.src = url;
+    this.audioCtx.play();
+  },
+
   addMessage(content, role, hasOrder) {
     const time = util.formatTime();
     const newMsg = {

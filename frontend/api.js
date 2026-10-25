@@ -115,28 +115,34 @@ const api = {
   },
 
   /**
-   * 语音转文字：上传录音文件到 /api/asr，返回 Promise<{text}>
+   * 发送语音消息：上传录音到 /api/voice，返回 Promise<{text, voice_url_full, duration}>
+   * voice_url_full 是原声回放的完整 URL（后端存档的音频文件）
    */
-  asrUpload(filePath) {
+  voiceUpload(filePath, sessionId, durationMs) {
     var baseUrl = config.apiBaseUrl;
     return new Promise((resolve, reject) => {
       wx.uploadFile({
-        url: baseUrl + '/api/asr',
+        url: baseUrl + '/api/voice',
         filePath: filePath,
         name: 'file',
+        formData: {
+          session_id: sessionId || '',
+          duration_ms: String(durationMs || 0),
+        },
         success: (res) => {
           try {
             var d = JSON.parse(res.data);
             if (res.statusCode === 200) {
+              d.voice_url_full = baseUrl + (d.voice_url || '');
               resolve(d);
             } else {
-              reject(new Error(d.detail || '语音识别失败'));
+              reject(new Error(d.detail || '语音发送失败'));
             }
           } catch (e) {
-            reject(new Error('语音识别响应异常'));
+            reject(new Error('语音响应异常'));
           }
         },
-        fail: (e) => reject(new Error((e && e.errMsg) || '录音上传失败')),
+        fail: (e) => reject(new Error((e && e.errMsg) || '语音上传失败')),
       });
     });
   },

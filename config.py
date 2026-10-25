@@ -46,6 +46,8 @@ CONVERSATIONS_FILE = os.path.join(DATA_DIR, "conversations.json")
 TRAINING_EXAMPLES_FILE = os.path.join(DATA_DIR, "training_examples.json")
 # 对话历史持久化目录（每个 session 一个文件，多实例恢复用）
 HISTORY_DIR = os.path.join(DATA_DIR, "sessions")
+# 用户语音消息存档（微信式语音气泡的回放源，按 session 分目录）
+VOICES_DIR = os.path.join(DATA_DIR, "voices")
 
 
 def get_llm_config() -> dict:
