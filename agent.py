@@ -1,4 +1,5 @@
 """AI Agent — 多轮对话引擎（支持 Ollama 本地 / DeepSeek）"""
+import hashlib
 import json
 import os
 import re
@@ -203,36 +204,69 @@ class DiningAgent:
             self._restore_session_orders(session_id)
         return self.conversations[session_id]
 
+    # 会话存档防污染：点餐会话的生命周期就是一顿饭
+    # ① TTL 过期：跨天的旧会话语境对新顾客有害无益，不恢复
+    # ② 菜单版本：换菜单后旧会话的菜名/价格/订单语境全部作废，不恢复
+    HISTORY_TTL_SECONDS = int(os.getenv("HISTORY_TTL_SECONDS", str(6 * 3600)))
+
+    @staticmethod
+    def _current_menu_hash() -> str:
+        try:
+            with open(MENU_FILE, "rb") as f:
+                return hashlib.md5(f.read()).hexdigest()
+        except Exception:
+            return ""
+
     def _restore_history(self, session_id: str) -> None:
         """从文件恢复对话历史。云托管多实例时内存状态可能丢失。
 
-        🔒 存档中的 system 消息一律丢弃，用当前生成的 system 替换：
-        system 含店名与示例池（必须跟随当前菜单）。恢复旧 system 会导致
-        「换菜单后店名/风格倒退回旧店」——2026-10-25 实测：菜单已换粤菜，
-        持久化 session 恢复旧存档后顾客问好仍自称「川味小馆」。
+        🔒 三道防污染闸门：
+        1. 会话 TTL 过期（默认 6 小时）→ 不恢复（点餐会话生命周期=一顿饭）
+        2. 存档时的菜单版本 ≠ 当前菜单版本 → 不恢复（换菜单旧语境作废）
+        3. 存档中的 system 消息一律丢弃，用当前生成的 system 替换
+           （system 含店名与示例池，必须跟随当前菜单——2026-10-25 实测：
+             恢复旧 system 导致换菜单后店名倒退回旧店「川味小馆」）
         """
         try:
             hist_file = os.path.join(HISTORY_DIR, f"{session_id}.json")
-            if os.path.exists(hist_file):
-                with open(hist_file, encoding="utf-8") as f:
-                    saved = json.load(f)
-                if isinstance(saved, list):
-                    clean = []
-                    for m in saved:
-                        if not isinstance(m, dict):
-                            continue
-                        role = m.get("role")
-                        if not role or role == "system":
-                            # system 永远用当前生成的（当前店名 + 当前示例池）
-                            continue
-                        # 确保有 content 字段（即使为 None）
-                        if "content" not in m:
-                            m["content"] = None
-                        clean.append(m)
-                    if clean:
-                        # 当前生成的 system（_get_history 已先写入）保存在列表头部
-                        current_system = self.conversations[session_id][0]
-                        self.conversations[session_id] = [current_system] + clean
+            if not os.path.exists(hist_file):
+                return
+            with open(hist_file, encoding="utf-8") as f:
+                saved = json.load(f)
+            # 兼容两种格式：新 {menu_hash, saved_at, messages} / 旧 [messages]
+            if isinstance(saved, dict):
+                messages = saved.get("messages")
+                saved_at = saved.get("saved_at", 0)
+                saved_menu_hash = saved.get("menu_hash") or ""
+            elif isinstance(saved, list):
+                messages = saved
+                saved_at, saved_menu_hash = 0, ""  # 旧格式无元数据
+            else:
+                return
+            if not isinstance(messages, list) or not messages:
+                return
+            # 闸门①: TTL 过期
+            if saved_at and time.time() - saved_at > self.HISTORY_TTL_SECONDS:
+                return
+            # 闸门②: 菜单版本不一致
+            cur_hash = self._current_menu_hash()
+            if saved_menu_hash and cur_hash and saved_menu_hash != cur_hash:
+                return
+            clean = []
+            for m in messages:
+                if not isinstance(m, dict):
+                    continue
+                role = m.get("role")
+                if not role or role == "system":
+                    # 闸门③: system 永远用当前生成的（当前店名 + 当前示例池）
+                    continue
+                if "content" not in m:
+                    m["content"] = None
+                clean.append(m)
+            if clean:
+                # 当前生成的 system（_get_history 已先写入）保存在列表头部
+                current_system = self.conversations[session_id][0]
+                self.conversations[session_id] = [current_system] + clean
         except Exception:
             pass
 
@@ -251,8 +285,13 @@ class DiningAgent:
                     clean_history.append(m.model_dump())
                 else:
                     clean_history.append({"role": "assistant", "content": str(m)})
+            payload = {
+                "menu_hash": self._current_menu_hash(),
+                "saved_at": int(time.time()),
+                "messages": clean_history,
+            }
             with open(hist_file, "w", encoding="utf-8") as f:
-                json.dump(clean_history, f, ensure_ascii=False, indent=2)
+                json.dump(payload, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
 
