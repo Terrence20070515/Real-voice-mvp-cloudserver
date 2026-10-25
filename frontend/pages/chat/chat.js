@@ -65,6 +65,7 @@ Page({
     // 导航栏总高度：状态栏 + 内容区（~80rpx）
     const navBarH = statusBarHeight + Math.round(80 * rpxToPx);
     // 滚动区可用高度 = 窗口高度 - 输入栏
+    this.initVoice();
     const scrollH = sysInfo.windowHeight - inputBarH;
     this.setData({ 
       statusBarHeight, 
@@ -172,6 +173,54 @@ Page({
       if (order.indexOf(n) === -1) result.push(map[n]);
     });
     return result;
+  },
+
+  // ─── 语音输入（微信同声传译插件 WechatSI）───
+  // 设计：按住说话 → 实时识别文字进输入框 → 用户确认后手动发送。
+  // 不自动发送：嘈杂环境下 ASR 可能误识别，确认一步防止点错菜。
+  initVoice() {
+    try {
+      const plugin = requirePlugin('WechatSI');
+      const manager = plugin.getRecordRecognitionManager();
+      manager.onRecognize((res) => {
+        // 中间识别结果实时进输入框，用户可见识别过程
+        if (res && res.result) this.setData({ inputValue: res.result });
+      });
+      manager.onStop((res) => {
+        this.setData({ recording: false });
+        const text = ((res && res.result) || '').trim();
+        if (text) this.setData({ inputValue: text });
+      });
+      manager.onError((res) => {
+        this.setData({ recording: false });
+        // 1003: 用户拒绝麦克风授权 → 引导去设置开启
+        if (res && res.retcode === 1003) {
+          wx.showModal({
+            title: '需要麦克风权限',
+            content: '请在设置中开启麦克风权限后使用语音点菜',
+            confirmText: '去设置',
+            success: (r) => { if (r.confirm) wx.openSetting(); },
+          });
+          return;
+        }
+        wx.showToast({ title: '语音识别不可用，请打字输入', icon: 'none' });
+      });
+      this.voiceManager = manager;
+    } catch (e) {
+      // 插件未生效（后台未添加插件/基础库过低）时隐藏语音入口
+      this.setData({ voiceAvailable: false });
+      console.warn('WechatSI 插件不可用:', e);
+    }
+  },
+
+  voiceStart() {
+    if (this.data.isLoading || this.data.recording || !this.voiceManager) return;
+    this.setData({ recording: true, inputValue: '' });
+    this.voiceManager.start({ lang: 'zh_CN', duration: 30000 });
+  },
+
+  voiceEnd() {
+    if (this.data.recording && this.voiceManager) this.voiceManager.stop();
   },
 
   // ─── 输入框 ───

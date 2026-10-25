@@ -83,7 +83,19 @@
 
   <!-- 底部输入栏（微信风格） -->
   <view class="input-bar" style="padding-bottom: {{keyboardHeight}}px;">
+    <!-- 语音识别状态条 -->
+    <view wx:if="{{recording}}" class="voice-status">
+      <view class="voice-dot"></view>
+      <text>正在聆听，请说出想点的菜…松手后转文字</text>
+    </view>
     <view class="input-row" id="inputRow">
+      <!-- 按住说话：识别文字填入输入框，用户确认后再发送 -->
+      <view
+        class="voice-btn {{recording ? 'voice-btn-recording' : ''}}"
+        bindtouchstart="voiceStart"
+        bindtouchend="voiceEnd"
+        bindtouchcancel="voiceEnd"
+      >{{recording ? '松开 转文字' : '按住 说话'}}</view>
       <!-- 输入框区域：textarea 支持多行 + 自动高度 -->
       <view class="input-box">
         <textarea

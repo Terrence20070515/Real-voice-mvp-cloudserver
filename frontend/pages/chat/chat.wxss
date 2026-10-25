@@ -520,3 +520,44 @@
   display: block;
   line-height: 1.5;
 }
+
+/* ─── 语音输入 ─── */
+.voice-btn {
+  flex-shrink: 0;
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 22rpx;
+  border-radius: 8rpx;
+  background: #eef0f2;
+  color: #141719;
+  font-size: 26rpx;
+  text-align: center;
+  margin-bottom: 4rpx;
+}
+
+.voice-btn-recording {
+  background: #141719;
+  color: #fff;
+}
+
+.voice-status {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 14rpx 24rpx 0;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.voice-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #d4232c;
+  animation: voice-pulse 1s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.8); }
+}
