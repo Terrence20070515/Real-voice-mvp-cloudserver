@@ -273,7 +273,7 @@ def api_tts(req: dict):
             f"{base}/audio/speech",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={"model": tts_model, "input": text, "voice": voice, "response_format": "mp3"},
-            timeout=60,
+            timeout=25,  # TTS 超时快速降级：超时则前端静默回退文字回复（SiliconFlow 免费通道排队慢）
         )
         resp.raise_for_status()
         return Response(content=resp.content, media_type="audio/mpeg")
