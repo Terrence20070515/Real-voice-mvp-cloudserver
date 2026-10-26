@@ -15,7 +15,6 @@ __pycache__/
 venv/
 
 # 微信开发者工具临时
-frontend/.project.private.config.json
 
 # 编辑器
 .vscode/

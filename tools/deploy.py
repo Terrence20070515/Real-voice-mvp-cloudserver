@@ -2,16 +2,33 @@
 
 用法：python deploy.py
 流程：git reset 到 origin/main → docker rm/build/run → 健康检查
+
+🔒 凭据从仓库根目录 .deploy.env 读取（已 gitignore，禁止入库——
+   历史上密码曾硬编码于此并进入 git 历史，属于泄露）。
 """
+import os
 import sys
 import time
 
+from dotenv import load_dotenv
+
 import paramiko
 
-HOST = "101.34.242.247"
-USER = "ubuntu"
-PASSWORD = "Zhang007515!"
-REPO = "/home/ubuntu/Real-voice-mvp-cloudserver"
+# 凭据注入：读取根目录 .deploy.env（不入库）
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".deploy.env"))
+
+HOST = os.getenv("SERVER_HOST", "")
+USER = os.getenv("SERVER_USER", "ubuntu")
+PASSWORD = os.getenv("SERVER_PASSWORD", "")
+REPO = os.getenv("SERVER_REPO", "/home/ubuntu/Real-voice-mvp-cloudserver")
+
+if not HOST or not PASSWORD:
+    print("缺少部署凭据：请在仓库根目录创建 .deploy.env（该文件已 gitignore），内容：")
+    print("SERVER_HOST=服务器IP")
+    print("SERVER_USER=ubuntu")
+    print("SERVER_PASSWORD=服务器密码")
+    print("SERVER_REPO=/home/ubuntu/Real-voice-mvp-cloudserver")
+    sys.exit(1)
 
 GIT_CMD = f"cd {REPO} && git fetch origin && git reset --hard origin/main 2>&1 | tail -1"
 DOCKER_CMD = (
