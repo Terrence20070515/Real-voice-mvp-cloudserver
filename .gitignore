@@ -29,3 +29,11 @@ data/*.tmp
 *.json.tmp
 data/menu.json
 frontend/project.private.config.json
+
+# 🔒 隐私/敏感封存（2026-10-25）
+.deploy.env
+*.deploy.env.bak
+data/training_examples.json
+data/voices/
+data/menu.json.backup
+frontend/.project.private.config.json
