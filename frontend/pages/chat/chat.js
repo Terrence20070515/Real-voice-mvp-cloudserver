@@ -385,13 +385,19 @@ Page({
 
   addMessage(content, role, hasOrder) {
     const time = util.formatTime();
+    const text = util.cleanText(content);
     const newMsg = {
       id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
       role: role,
-      content: content,
+      content: text,
       time: time,
       hasOrder: !!hasOrder
     };
+    // AI 回复里出现菜单中的菜名 → 切成「文字 + 菜品卡」，避免整段糊成文字
+    if (role === 'assistant') {
+      const blocks = util.parseReply(text, this.data.menuData);
+      if (blocks.some((b) => b.type === 'dish')) newMsg.blocks = blocks;
+    }
     const messages = this.data.messages.concat([newMsg]);
     this.setData({
       messages: messages,
@@ -399,6 +405,13 @@ Page({
     });
     // 立即保存
     util.saveChatHistory(this.data.sessionId, messages);
+  },
+
+  // 菜品卡上的「加」
+  addDish(e) {
+    const name = e.currentTarget.dataset.dish;
+    if (!name || this.data.isLoading) return;
+    this.sendContent('来一份' + name, null);
   },
 
   // 跳转到买单页面

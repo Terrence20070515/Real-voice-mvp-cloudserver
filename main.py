@@ -56,6 +56,8 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    # 前端语言开关：zh / en；不传则沿用该会话上次的语言（缺省中文）
+    locale: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -109,7 +111,7 @@ def api_chat(req: ChatRequest):
     """AI 对话接口"""
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
-    reply = agent.chat(session_id=req.session_id, message=req.message)
+    reply = agent.chat(session_id=req.session_id, message=req.message, locale=req.locale)
     return ChatResponse(reply=reply)
 
 

@@ -155,6 +155,29 @@ def _log_conversation(
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 
+# 前端语言开关传入 zh / en，每轮在用户消息前注入「本轮语言要求」。
+# 放在用户消息里（而不是只改 system prompt），好处是切语言时"最新一条"总是生效。
+_LANG_HINT = {
+    "zh": "【本轮语言要求】请用中文回答（菜名按菜单原文）。以本条为准，覆盖之前的语言偏好。",
+    "en": "【Language requirement for this turn】Reply in English only "
+          "(dish names may stay in the original Chinese). "
+          "This overrides any earlier language preference.",
+}
+
+# 少数硬编码兜底回复（不经过模型）也要跟着语言走
+_FIXED = {
+    "greeting_cont": {
+        "zh": "您好~ 请问还需要加点什么吗？或者有其他需要我帮忙的？",
+        "en": "Hi~ Anything else you'd like to add? Or can I help with something else?",
+    },
+    "neg_qty": {
+        "zh": "您提到的数量「{qty}」似乎不太对哦——数量必须是大于0的正整数。您是想来几份呢？",
+        "en": "The quantity \"{qty}\" doesn't look right — it has to be a positive whole number. "
+              "How many would you like?",
+    },
+}
+
+
 class DiningAgent:
     def __init__(self):
         cfg = get_llm_config()
@@ -168,6 +191,8 @@ class DiningAgent:
         self.session_orders: dict[str, list[str]] = {}
         # 每个 session 的槽位状态表（人数/过敏/偏好等，从对话中实时提取）
         self.session_slots: dict[str, dict] = {}
+        # 每个 session 的回复语言（zh / en），由前端语言开关传入；缺省中文
+        self.session_locale: dict[str, str] = {}
         # 会话级分片锁：同一 session 的请求必须串行（见 _session_lock 说明）
         self._locks = [threading.Lock() for _ in range(self._LOCK_STRIPES)]
 
@@ -591,26 +616,31 @@ class DiningAgent:
                 raise
         raise last_err
 
-    def chat(self, session_id: str, message: str) -> str:
+    def chat(self, session_id: str, message: str, locale: str | None = None) -> str:
         """对外入口：同一 session 的请求串行处理。
 
         并发保护的必要性见 _session_lock 的说明 —— 不加锁时，同一会话的并发请求
         会交错写入共享的会话历史，导致回复里报出别人的订单号。
+
+        locale: "zh" / "en"，前端语言开关传入；不传则沿用该会话上次的语言。
         """
+        if locale in ("zh", "en"):
+            self.session_locale[session_id] = locale
         with self._session_lock(session_id):
             return self._chat_locked(session_id, message)
 
     def _chat_locked(self, session_id: str, message: str) -> str:
         history = self._get_history(session_id)
         _msg = message.strip()
+        lang = self.session_locale.get(session_id, "zh")
 
         # 0) 槽位提取：从用户消息中提取人数/过敏/偏好等，填入状态表
         self._extract_slots(session_id, _msg)
 
         # 1) 寒暄词 + 已有对话历史 → 直接返回续接回复
-        _greetings = {"你好", "您好", "在吗", "有人吗", "嗨"}
+        _greetings = {"你好", "您好", "在吗", "有人吗", "嗨", "hello", "hi", "hey"}
         if _msg.lower() in {g.lower() for g in _greetings} and len(history) >= 3:
-            _reply = "您好~ 请问还需要加点什么吗？或者有其他需要我帮忙的？"
+            _reply = _FIXED["greeting_cont"][lang]
             history.append({"role": "assistant", "content": _reply})
             _log_conversation(session_id, message, _reply, [])
             self._save_history(session_id)
@@ -619,7 +649,7 @@ class DiningAgent:
         # 2) 负数数量检测 → 硬拦截
         _neg = re.search(r'[-——]\s*\d+\s*(份|个|碗|杯|瓶|盘|斤|套)', _msg)
         if _neg:
-            _reply = f"您提到的数量「{_neg.group(0)}」似乎不太对哦——数量必须是大于0的正整数。您是想来几份呢？"
+            _reply = _FIXED["neg_qty"][lang].format(qty=_neg.group(0))
             history.append({"role": "assistant", "content": _reply})
             _log_conversation(session_id, message, _reply, [])
             self._save_history(session_id)
@@ -654,6 +684,12 @@ class DiningAgent:
         order_intent = bool(re.search(
             r"(来|点|加|上|要)\s*[一二两三四五六七八九十0-9]{0,2}\s*(份|个|碗|杯|瓶|听|盒|盘)|下单|确认下单|就这些",
             raw_msg))
+
+        # 3.5) 语言锁定：把「本轮用哪种语言答复」放在用户消息最前面，
+        #      切语言时永远以最新一条为准（历史里旧的偏好会被本条覆盖）
+        _hint = _LANG_HINT.get(lang)
+        if _hint:
+            _msg = _hint + "\n\n" + _msg
 
         history.append({"role": "user", "content": _msg})
 

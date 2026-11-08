@@ -27,7 +27,26 @@
             {{item.role === 'user' ? '我' : 'AI'}}
           </view>
           <view class="msg-wrapper">
+            <!-- AI 回复里出现菜名：文字段 + 菜品卡（一字图） -->
+            <block wx:if="{{item.blocks}}">
+              <block wx:for="{{item.blocks}}" wx:for-item="b" wx:for-index="bi" wx:key="bi">
+                <view wx:if="{{b.type === 'text'}}" class="msg-bubble">{{b.text}}</view>
+                <view wx:else class="dish-card">
+                  <view class="dish-tile" style="background:{{b.bg}};color:{{b.fg}}">{{b.char}}</view>
+                  <view class="dish-info">
+                    <view class="dish-title">
+                      <text class="dish-name">{{b.name}}</text>
+                      <text class="dish-price">{{b.price}}</text>
+                    </view>
+                    <text class="dish-meta">{{b.meta}}</text>
+                  </view>
+                  <view class="dish-add" data-dish="{{b.name}}" catchtap="addDish">加</view>
+                </view>
+              </block>
+            </block>
+
             <view
+              wx:else
               class="msg-bubble {{item.isVoice ? 'voice-bubble' : ''}}"
               data-url="{{item.voiceUrl}}"
               catchtap="{{item.isVoice ? 'playVoice' : ''}}"

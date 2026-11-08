@@ -297,6 +297,92 @@ const util = {
     return out;
   },
 
+  /** 去掉 emoji / 1️⃣ 序号标记 / markdown 粗体 */
+  cleanText(s) {
+    return this.safeStr(s)
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{20E3}]/gu, '')
+      .replace(/\*\*/g, '')
+      .replace(/[ \t]+\n/g, '\n')
+      .trim();
+  },
+
+  /** 菜名取第一个有意义的字（一字图用） */
+  pickChar(name) {
+    const s = this.safeStr(name).trim();
+    for (let i = 0; i < s.length; i++) {
+      if (/[\u4e00-\u9fa5A-Za-z0-9]/.test(s[i])) return s[i];
+    }
+    return s.charAt(0) || '菜';
+  },
+
+  /** 按分类稳定取一个浅色底/深色字，保证同一道菜每次颜色一致 */
+  tintOf(seed) {
+    const TINTS = [
+      { bg: '#EEF2FE', fg: '#2F4BB8' },
+      { bg: '#EAF6EF', fg: '#1A7F4B' },
+      { bg: '#FDF4E3', fg: '#8A5300' },
+      { bg: '#FBEAE8', fg: '#A33A2E' },
+      { bg: '#F1EFFA', fg: '#5A4BA8' },
+      { bg: '#E9F4F5', fg: '#2A6E74' }
+    ];
+    const s = this.safeStr(seed);
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
+    return TINTS[h % TINTS.length];
+  },
+
+  /**
+   * 把 AI 回复切成 [文字段, 菜品卡] 的块，用于结构化渲染
+   * menuData: [{ name, items: [{ name, price, spicy, description }] }]
+   */
+  parseReply(text, menuData) {
+    const lines = this.safeStr(text).split('\n');
+    const dishes = [];
+    (menuData || []).forEach((cat) => {
+      (cat.items || []).forEach((d) => {
+        if (d && d.name) dishes.push(Object.assign({ cat: cat.name }, d));
+      });
+    });
+    dishes.sort((a, b) => b.name.length - a.name.length);
+
+    const blocks = [];
+    let buf = [];
+    const flush = () => {
+      const t = this.cleanText(buf.join('\n'));
+      if (t) blocks.push({ type: 'text', text: t });
+      buf = [];
+    };
+
+    lines.forEach((line) => {
+      const clean = line
+        .replace(/^\s*(?:[0-9]{1,2}\s*[.\u3001)\uFF09]?|[\u2460-\u2473]|[\u2022\u00b7\-*])\s*/, '')
+        .trim();
+      if (!clean) { buf.push(''); return; }
+
+      let hit = null;
+      for (let i = 0; i < dishes.length; i++) {
+        if (clean.indexOf(dishes[i].name) >= 0) { hit = dishes[i]; break; }
+      }
+      if (hit) {
+        flush();
+        const tint = this.tintOf(hit.cat || hit.name);
+        blocks.push({
+          type: 'dish',
+          char: this.pickChar(hit.name),
+          bg: tint.bg,
+          fg: tint.fg,
+          name: hit.name,
+          price: hit.price,
+          meta: [hit.spicy && hit.spicy !== '不辣' ? hit.spicy : '', hit.description].filter(Boolean).join(' · ')
+        });
+      } else {
+        buf.push(clean);
+      }
+    });
+    flush();
+    return blocks;
+  },
+
   /** 把扁平菜单按分类顺序分组（保持后端返回的分类次序） */
   groupByCategory(groups) {
     return groups || [];

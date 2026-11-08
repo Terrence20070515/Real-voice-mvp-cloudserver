@@ -135,6 +135,94 @@
 
 .msg-item.assistant .msg-wrapper {
   align-items: flex-start;
+  max-width: 76%;
+}
+
+/* 多段内容（文字段 + 菜品卡）之间的间距 */
+.msg-wrapper .msg-bubble,
+.msg-wrapper .dish-card {
+  margin-bottom: 12rpx;
+}
+
+/* ============ 菜品卡（AI 报菜名时）============ */
+.dish-card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e8e8e8;
+  border-radius: 16rpx;
+}
+
+.dish-tile {
+  flex: 0 0 auto;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.dish-info {
+  flex: 1;
+  min-width: 0;
+  margin-left: 16rpx;
+}
+
+.dish-title {
+  display: flex;
+  align-items: baseline;
+}
+
+.dish-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dish-price {
+  margin-left: auto;
+  padding-left: 12rpx;
+  flex: 0 0 auto;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.dish-meta {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #999;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dish-add {
+  flex: 0 0 auto;
+  margin-left: 12rpx;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  border: 1rpx solid #e0e0e0;
+  background: #fafafa;
+  color: #141719;
+  font-size: 24rpx;
+  line-height: 50rpx;
+  text-align: center;
+}
+
+.dish-add:active {
+  background: #eeeff0;
 }
 
 /* 气泡 */

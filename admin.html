@@ -644,6 +644,15 @@ async function loadMenu() {
 
 function renderMenu() {
   if (!menuData || !menuData.categories) return;
+  // 导入框的示例文案跟随当前菜单生成，避免出现与当前店无关的菜系示例
+  const ta = document.getElementById('menuTextInput');
+  if (ta && menuData.categories.length) {
+    const first = menuData.categories[0].items || [];
+    const sample = first.slice(0, 3).map(it =>
+      it.name + ' ' + it.price + '元' + (it.spicy && it.spicy !== '不辣' ? ' ' + it.spicy : ''));
+    sample.push('米饭 3');
+    ta.placeholder = sample.join('\n');
+  }
   let html = `<p style="margin-bottom:12px;font-size:13px;color:#666;">
     餐厅：<b>${menuData.restaurant||'本店'}</b> |
     分类 ${menuData.categories.length} 个 |
