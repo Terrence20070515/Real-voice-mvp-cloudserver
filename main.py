@@ -203,7 +203,12 @@ def api_pay_order(order_id: str):
 
 @app.post("/api/orders/{session_id}/checkout")
 def api_checkout_session(session_id: str):
-    """按 session 结账：支付该会话所有未支付订单（小程序前端「去结账」按钮可调用）"""
+    """按 session 结账：支付该会话所有未支付订单（小程序前端「去结账」按钮可调用）。
+
+    ⚠️ 语义区分：结账 ≠ 清台。结账只改支付状态，对话历史保留（顾客可能还坐着）；
+    清台 = POST /api/orders/clear（店家专属操作，同时清除订单与该会话对话历史，
+    AI 随即忘记这一桌）。顾客在对话中无法触发清台——LLM 工具表中无清除类工具。
+    """
     result = checkout_session(session_id=session_id)
     try:
         return json.loads(result)
