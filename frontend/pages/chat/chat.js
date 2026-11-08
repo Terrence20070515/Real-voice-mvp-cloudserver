@@ -20,6 +20,7 @@ Page({
     inputValue: '',
     voiceReplyOn: false,  // 语音播报开关：开启后 AI 回复自动转语音播放
     sessionId: '',
+    lang: 'zh',   // 回复语言：zh / en（跟随后端 locale）
     isLoading: false,
     showMenu: false,
     menuData: [],
@@ -43,6 +44,8 @@ Page({
   },
 
   onLoad(options) {
+    // 语言偏好（默认中文）
+    try { this.setData({ lang: wx.getStorageSync('rv_lang') === 'en' ? 'en' : 'zh' }); } catch (e) {}
     // 0. 动态计算各区域高度
     const sysInfo = wx.getSystemInfoSync();
     const statusBarHeight = sysInfo.statusBarHeight || 20;
@@ -78,10 +81,7 @@ Page({
       this.scrollToBottom();
     } else {
       // 第一次进入，添加欢迎消息（不带店名：店名由后端菜单驱动，这里保持通用）
-      this.addMessage(
-        '您好！我是 AI 点餐助手。\n\n可以告诉我您想吃什么，比如「我想吃辣的」、「推荐几个菜」，或者直接说出菜名。\n\n请问几位用餐？',
-        'assistant'
-      );
+      this.addMessage(this.welcomeText(this.data.lang), 'assistant');
     }
 
     // 3. 预加载菜单
@@ -251,6 +251,26 @@ Page({
     }
   },
 
+  // ─── 语言切换 ───
+  welcomeText(lang) {
+    return lang === 'en'
+      ? "Hi! I'm your AI ordering assistant.\n\nTell me what you'd like — dishes, taste preferences, or just say a dish name.\n\nHow many guests?"
+      : '您好！我是 AI 点餐助手。\n\n可以告诉我您想吃什么，比如「我想吃辣的」、「推荐几个菜」，或者直接说出菜名。\n\n请问几位用餐？';
+  },
+
+  toggleLang() {
+    const lang = this.data.lang === 'zh' ? 'en' : 'zh';
+    try { wx.setStorageSync('rv_lang', lang); } catch (e) {}
+    this.setData({ lang });
+    // 还没开始点单时，欢迎语跟着切（已经在聊就不动历史消息）
+    const msgs = this.data.messages || [];
+    if (msgs.length === 1 && msgs[0].role === 'assistant' && !msgs[0].orderId && !msgs[0].blocks) {
+      msgs[0].content = this.welcomeText(lang);
+      this.setData({ messages: msgs });
+      util.saveChatHistory(this.data.sessionId, msgs);
+    }
+  },
+
   // ─── 语音 / 键盘切换（微信式：点一下切语音，再点回打字）───
   toggleInputMode() {
     if (this.data.recording) return;
@@ -328,7 +348,7 @@ Page({
     this.setData({ isLoading: true });
 
     api
-      .chat({ sessionId: this.data.sessionId, message: content })
+      .chat({ sessionId: this.data.sessionId, message: content, locale: this.data.lang })
       .then((reply) => {
         if (reply && reply.trim()) {
           // 检测是否包含订单信息

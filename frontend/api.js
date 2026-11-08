@@ -210,7 +210,7 @@ const api = {
       return requestViaWx({
         url: '/api/chat',
         method: 'POST',
-        data: { session_id: params.sessionId, message: params.message },
+        data: { session_id: params.sessionId, message: params.message, locale: params.locale },
         timeout: 60000,  // AI 对话给足时间
         baseUrl: config.cloudPublicUrl  // 走云托管公网地址
       }).then(function (data) {
@@ -221,7 +221,7 @@ const api = {
     return request({
       url: '/api/chat',
       method: 'POST',
-      data: { session_id: params.sessionId, message: params.message }
+      data: { session_id: params.sessionId, message: params.message, locale: params.locale }
     }).then(function (data) {
       return data.reply;
     });

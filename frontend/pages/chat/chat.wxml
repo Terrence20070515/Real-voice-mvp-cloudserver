@@ -5,6 +5,7 @@
     <view class="top-btns">
       <view class="back-btn" bindtap="goBack">‹</view>
       <view class="menu-btn" bindtap="toggleMenu">菜单</view>
+      <view class="menu-btn lang-btn" bindtap="toggleLang">{{lang === 'zh' ? 'EN' : '中'}}</view>
     </view>
     <view class="top-title">AI 点餐助手</view>
   </view>
@@ -40,7 +41,7 @@
                     </view>
                     <text class="dish-meta">{{b.meta}}</text>
                   </view>
-                  <view class="dish-add" data-dish="{{b.name}}" catchtap="addDish">加</view>
+                  <view class="dish-add" data-dish="{{b.name}}" catchtap="addDish">{{lang === 'en' ? 'Add' : '加'}}</view>
                 </view>
               </block>
             </block>
@@ -89,7 +90,7 @@
     <!-- 语音识别状态条 -->
     <view wx:if="{{recording}}" class="voice-status">
       <view class="voice-dot"></view>
-      <text>正在聆听，请说出想点的菜…松手后自动发送文字</text>
+      <text>{{lang === 'en' ? 'Listening… release to send as text' : '正在聆听，请说出想点的菜…松手后自动发送文字'}}</text>
     </view>
     <view class="input-row" id="inputRow">
       <!-- 左：语音 / 键盘切换（点一下切到长按语音，再点回打字） -->
@@ -105,13 +106,13 @@
         bindtouchstart="voiceStart"
         bindtouchend="voiceEnd"
         bindtouchcancel="voiceEnd"
-      >{{recording ? '松开 发送' : '按住 说话'}}</view>
+      >{{recording ? (lang === 'en' ? 'Release to send' : '松开 发送') : (lang === 'en' ? 'Hold to talk' : '按住 说话')}}</view>
 
       <!-- 打字模式：textarea 支持多行 + 自动高度 -->
       <view wx:else class="input-box">
         <textarea
           class="input-textarea"
-          placeholder="发消息..."
+          placeholder="{{lang === 'en' ? 'Message…' : '发消息...'}}"
           placeholder-class="input-placeholder"
           value="{{inputValue}}"
           focus="{{inputFocus}}"
