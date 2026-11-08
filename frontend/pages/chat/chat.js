@@ -1,6 +1,7 @@
 // pages/chat/chat.js
 const api = require('../../api');
 const util = require('../../utils/util');
+const i18n = require('../../utils/i18n');
 
 // 检测 AI 回复里是否包含「下单成功」的关键词
 function detectOrderInReply(text) {
@@ -20,7 +21,8 @@ Page({
     inputValue: '',
     voiceReplyOn: false,  // 语音播报开关：开启后 AI 回复自动转语音播放
     sessionId: '',
-    lang: 'zh',   // 回复语言：zh / en（跟随后端 locale）
+    lang: i18n.current(),   // 回复语言：zh / en（跟随后端 locale）
+    i18n: i18n.pack(i18n.current()),
     isLoading: false,
     showMenu: false,
     menuData: [],
@@ -44,8 +46,9 @@ Page({
   },
 
   onLoad(options) {
-    // 语言偏好（默认中文）
-    try { this.setData({ lang: wx.getStorageSync('rv_lang') === 'en' ? 'en' : 'zh' }); } catch (e) {}
+    // 语言偏好（默认中文；统一从 utils/i18n 读取）
+    const _lang = i18n.current();
+    this.setData({ lang: _lang, i18n: i18n.pack(_lang) });
     // 0. 动态计算各区域高度
     const sysInfo = wx.getSystemInfoSync();
     const statusBarHeight = sysInfo.statusBarHeight || 20;
@@ -115,6 +118,19 @@ Page({
     wx.onKeyboardHeightChange(this.keyboardListener);
   },
 
+  onShow() {
+    // 在首页/菜单/买单页切过语言，回到这里要跟上（欢迎语只在未开始时跟切）
+    const lang = i18n.current();
+    if (lang === this.data.lang) return;
+    this.setData({ lang, i18n: i18n.pack(lang) });
+    const msgs = this.data.messages || [];
+    if (msgs.length === 1 && msgs[0].role === 'assistant' && !msgs[0].orderId && !msgs[0].blocks) {
+      msgs[0].content = this.welcomeText(lang);
+      this.setData({ messages: msgs });
+      util.saveChatHistory(this.data.sessionId, msgs);
+    }
+  },
+
   onUnload() {
     if (this.keyboardListener) {
       wx.offKeyboardHeightChange(this.keyboardListener);
@@ -170,7 +186,7 @@ Page({
   toggleVoiceReply() {
     const on = !this.data.voiceReplyOn;
     this.setData({ voiceReplyOn: on });
-    wx.showToast({ title: on ? '语音播报已开启' : '语音播报已关闭', icon: 'none' });
+    wx.showToast({ title: on ? this.data.i18n.ttsOn : this.data.i18n.ttsOff, icon: 'none' });
     if (!on && this.audioCtx) {
       this.audioCtx.stop();  // 关闭时停止正在播放的语音
     }
@@ -211,17 +227,17 @@ Page({
         this.setData({ recording: false });
         if (!res || !res.tempFilePath) return;
         if ((res.duration || 0) < 500) {
-          wx.showToast({ title: '说话时间太短', icon: 'none' });
+          wx.showToast({ title: this.data.i18n.tooShort, icon: 'none' });
           return;
         }
-        wx.showLoading({ title: '识别中…', mask: true });
+        wx.showLoading({ title: this.data.i18n.recognizing, mask: true });
         api
           .asrUpload(res.tempFilePath)
           .then((d) => {
             wx.hideLoading();
             const raw = ((d && d.text) || '').trim();
             if (!raw) {
-              wx.showToast({ title: '未识别到内容，请重试', icon: 'none' });
+              wx.showToast({ title: this.data.i18n.noSpeech, icon: 'none' });
               return;
             }
             // 按菜单纠正同音字（虾饺黄 → 虾饺皇），再以文字消息发送
@@ -230,7 +246,7 @@ Page({
           })
           .catch((e) => {
             wx.hideLoading();
-            wx.showToast({ title: e.message || '语音识别失败', icon: 'none' });
+            wx.showToast({ title: e.message || this.data.i18n.asrFail, icon: 'none' });
           });
       });
       this.recorder.onError(() => {
@@ -238,9 +254,9 @@ Page({
         wx.hideLoading();
         // 多为 scope.record 麦克风授权被拒 → 引导去设置开启
         wx.showModal({
-          title: '需要麦克风权限',
-          content: '请在设置中开启麦克风权限后使用语音点菜',
-          confirmText: '去设置',
+          title: this.data.i18n.micPermTitle,
+          content: this.data.i18n.micPermBody,
+          confirmText: this.data.i18n.micPermConfirm,
           success: (r) => { if (r.confirm) wx.openSetting(); },
         });
       });
@@ -259,9 +275,8 @@ Page({
   },
 
   toggleLang() {
-    const lang = this.data.lang === 'zh' ? 'en' : 'zh';
-    try { wx.setStorageSync('rv_lang', lang); } catch (e) {}
-    this.setData({ lang });
+    const lang = i18n.toggle();
+    this.setData({ lang, i18n: i18n.pack(lang) });
     // 还没开始点单时，欢迎语跟着切（已经在聊就不动历史消息）
     const msgs = this.data.messages || [];
     if (msgs.length === 1 && msgs[0].role === 'assistant' && !msgs[0].orderId && !msgs[0].blocks) {
@@ -357,17 +372,17 @@ Page({
           // 语音播报模式：开启后 AI 回复自动转语音播放（准电话体验）
           if (this.data.voiceReplyOn) this.speakReply(reply);
         } else {
-          this.addMessage('（AI 没有返回内容，请重试）', 'assistant');
+          this.addMessage(this.data.i18n.noReply, 'assistant');
         }
       })
       .catch((err) => {
         console.error('AI 对话失败', err);
-        let hint = '网络开小差了';
+        let hint = this.data.i18n.netHint;
         if (err && err.message) {
           if (err.message.indexOf('connect') >= 0 || err.message.indexOf('无法连接') >= 0) {
-            hint = '无法连接后端服务\n\n请检查：\n1. 后端是否已启动（python main.py）\n2. config.js 里的 apiBaseUrl 是否正确（真机用局域网 IP）\n3. 手机和电脑是否在同一个 WiFi';
+            hint = this.data.i18n.netHintConn;
           } else if (err.message.indexOf('超时') >= 0) {
-            hint = 'AI 思考太久啦，请稍后再试';
+            hint = this.data.i18n.netHintTimeout;
           } else {
             hint = err.message;
           }
@@ -431,7 +446,7 @@ Page({
   addDish(e) {
     const name = e.currentTarget.dataset.dish;
     if (!name || this.data.isLoading) return;
-    this.sendContent('来一份' + name, null);
+    this.sendContent(this.data.i18n.addOne + name, null);
   },
 
   // 跳转到买单页面

@@ -4,10 +4,10 @@
   <view class="top-bar" style="padding-top: {{statusBarHeight}}px;">
     <view class="top-btns">
       <view class="back-btn" bindtap="goBack">‹</view>
-      <view class="menu-btn" bindtap="toggleMenu">菜单</view>
-      <view class="menu-btn lang-btn" bindtap="toggleLang">{{lang === 'zh' ? 'EN' : '中'}}</view>
+      <view class="menu-btn" bindtap="toggleMenu">{{i18n.menuHeading}}</view>
+      <view class="menu-btn lang-btn" bindtap="toggleLang">{{i18n.langBtn}}</view>
     </view>
-    <view class="top-title">AI 点餐助手</view>
+    <view class="top-title">{{i18n.assistantTitle}}</view>
   </view>
 
   <!-- 聊天消息区域（动态调整底部留白，避免被面板/输入栏遮挡） -->
@@ -41,7 +41,7 @@
                     </view>
                     <text class="dish-meta">{{b.meta}}</text>
                   </view>
-                  <view class="dish-add" data-dish="{{b.name}}" catchtap="addDish">{{lang === 'en' ? 'Add' : '加'}}</view>
+                  <view class="dish-add" data-dish="{{b.name}}" catchtap="addDish">{{i18n.add}}</view>
                 </view>
               </block>
             </block>
@@ -63,7 +63,7 @@
               wx:if="{{item.role === 'assistant' && item.hasOrder}}"
               class="pay-entry-btn"
               catchtap="goToPay"
-            >去结账 ›</view>
+            >{{i18n.goCheckout}}</view>
             <text class="msg-time">{{item.time}}</text>
           </view>
         </view>
@@ -90,7 +90,7 @@
     <!-- 语音识别状态条 -->
     <view wx:if="{{recording}}" class="voice-status">
       <view class="voice-dot"></view>
-      <text>{{lang === 'en' ? 'Listening… release to send as text' : '正在聆听，请说出想点的菜…松手后自动发送文字'}}</text>
+      <text>{{i18n.listening}}</text>
     </view>
     <view class="input-row" id="inputRow">
       <!-- 左：语音 / 键盘切换（点一下切到长按语音，再点回打字） -->
@@ -106,13 +106,13 @@
         bindtouchstart="voiceStart"
         bindtouchend="voiceEnd"
         bindtouchcancel="voiceEnd"
-      >{{recording ? (lang === 'en' ? 'Release to send' : '松开 发送') : (lang === 'en' ? 'Hold to talk' : '按住 说话')}}</view>
+      >{{recording ? i18n.release : i18n.hold}}</view>
 
       <!-- 打字模式：textarea 支持多行 + 自动高度 -->
       <view wx:else class="input-box">
         <textarea
           class="input-textarea"
-          placeholder="{{lang === 'en' ? 'Message…' : '发消息...'}}"
+          placeholder="{{i18n.placeholder}}"
           placeholder-class="input-placeholder"
           value="{{inputValue}}"
           focus="{{inputFocus}}"
@@ -145,17 +145,17 @@
   <!-- 菜单浮窗内容 -->
   <view class="menu-popup" wx:if="{{showMenu}}">
     <view class="popup-header">
-      <text class="popup-title">今日菜单</text>
+      <text class="popup-title">{{i18n.todaysMenu}}</text>
       <view class="close-btn" bindtap="closeMenu">✕</view>
     </view>
 
     <view class="menu-state" wx:if="{{menuLoading}}">
       <view class="loading-spinner"></view>
-      <text class="state-text">正在加载菜单...</text>
+      <text class="state-text">{{i18n.loadingMenu}}</text>
     </view>
 
     <view class="menu-state" wx:elif="{{menuData.length === 0}}">
-      <text class="state-text">暂无菜品数据</text>
+      <text class="state-text">{{i18n.noDishes}}</text>
     </view>
 
     <scroll-view scroll-y class="menu-scroll" wx:else>

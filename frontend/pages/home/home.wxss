@@ -12,6 +12,7 @@ page {
 
 /* ── 店名 ── */
 .hero {
+  position: relative;
   padding: 56rpx 0 40rpx;
   text-align: center;
 }
@@ -25,6 +26,28 @@ page {
 .hero-meta {
   font-size: 26rpx;
   color: #8c959f;
+}
+/* 语言开关：贴右上角，不挤店名 */
+.hero-lang {
+  position: absolute;
+  top: 40rpx;
+  right: 0;
+  min-width: 76rpx;
+  padding: 0 18rpx;
+  height: 54rpx;
+  line-height: 52rpx;
+  text-align: center;
+  border-radius: 27rpx;
+  border: 1rpx solid #e4e6e9;
+  background: #fff;
+  color: #5b646e;
+  font-size: 24rpx;
+  letter-spacing: 1rpx;
+  white-space: nowrap;
+}
+.hero-lang-hover {
+  background: #f0f1f3;
+  color: #141719;
 }
 
 /* ── AI 点单入口 ── */

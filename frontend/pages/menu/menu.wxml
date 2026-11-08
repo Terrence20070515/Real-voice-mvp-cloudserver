@@ -2,9 +2,9 @@
 <view class="page">
   <!-- 顶部导航 -->
   <view class="top-bar">
-    <view class="back-btn" bindtap="goBack">‹ 返回</view>
-    <view class="top-title">完整菜单</view>
-    <view class="placeholder"></view>
+    <view class="back-btn" bindtap="goBack">{{i18n.back}}</view>
+    <view class="top-title">{{i18n.fullMenu}}</view>
+    <view class="top-lang" bindtap="toggleLang">{{i18n.langBtn}}</view>
   </view>
 
   <!-- 主体：左侧分类 + 右侧菜品 -->
@@ -12,12 +12,12 @@
     <!-- 加载中 -->
     <view class="state-view" wx:if="{{loading}}">
       <view class="loading-spinner"></view>
-      <text>正在加载菜单...</text>
+      <text>{{i18n.loadingMenu}}</text>
     </view>
 
     <!-- 错误 -->
     <view class="state-view" wx:elif="{{error}}">
-      <text class="state-icon">提示</text>
+      <text class="state-icon">{{i18n.notice}}</text>
       <text>{{error}}</text>
     </view>
 
@@ -49,14 +49,14 @@
               class="dish-row"
             >
               <view class="dish-emoji">
-                {{dish.spicy}}
+                {{dish.showSpicy ? dish.spicyText : ''}}
               </view>
               <view class="dish-content">
                 <view class="dish-name-row">
                   <text class="dish-name">{{dish.name}}</text>
-                  <text class="dish-spicy" wx:if="{{dish.spicy !== '不辣'}}">{{dish.spicy}}</text>
+                  <text class="dish-spicy" wx:if="{{dish.showSpicy}}">{{dish.spicyText}}</text>
                 </view>
-                <text class="dish-desc">{{dish.description}}</text>
+                <text class="dish-desc" wx:if="{{dish.showDesc}}">{{dish.description}}</text>
                 <view class="dish-bottom">
                   <text class="dish-price">{{dish.price}}</text>
                   <view class="qty-control">
@@ -88,27 +88,27 @@
   <!-- 底部购物车栏 -->
   <view class="cart-bar" wx:if="{{!loading && !error}}">
     <view class="cart-icon-wrap" bindtap="toggleCart">
-      <view class="cart-icon {{cartCount > 0 ? 'active' : ''}}">购物车</view>
+      <view class="cart-icon {{cartCount > 0 ? 'active' : ''}}">{{i18n.cart}}</view>
       <view class="cart-badge" wx:if="{{cartCount > 0}}">{{cartCount}}</view>
     </view>
     <view class="cart-info" bindtap="toggleCart">
       <view class="cart-total {{cartCount > 0 ? 'active' : ''}}">
-        {{cartCount > 0 ? '¥' + cartTotal : '未选购商品'}}
+        {{cartCount > 0 ? '¥' + cartTotal : i18n.noItems}}
       </view>
-      <view class="cart-hint" wx:if="{{cartCount === 0}}">从菜单选择菜品</view>
+      <view class="cart-hint" wx:if="{{cartCount === 0}}">{{i18n.pickDishes}}</view>
     </view>
     <view
       class="submit-btn {{cartCount === 0 ? 'disabled' : ''}}"
       bindtap="submitOrder"
-    >去下单</view>
+    >{{i18n.goOrder}}</view>
   </view>
 
   <!-- 购物车详情浮窗 -->
   <view class="cart-mask" wx:if="{{showCart}}" catchtap="closeCart"></view>
   <view class="cart-popup" wx:if="{{showCart}}">
     <view class="cart-popup-header">
-      <text class="cart-popup-title">已选商品</text>
-      <text class="clear-btn" bindtap="clearCart">清空</text>
+      <text class="cart-popup-title">{{i18n.selected}}</text>
+      <text class="clear-btn" bindtap="clearCart">{{i18n.clear}}</text>
     </view>
     <scroll-view scroll-y class="cart-popup-list">
       <block wx:for="{{categories}}" wx:key="name">
@@ -120,7 +120,7 @@
           </view>
         </block>
       </block>
-      <view wx:if="{{cartCount === 0}}" class="cart-empty">购物车空空如也</view>
+      <view wx:if="{{cartCount === 0}}" class="cart-empty">{{i18n.cartEmpty}}</view>
     </scroll-view>
   </view>
 </view>

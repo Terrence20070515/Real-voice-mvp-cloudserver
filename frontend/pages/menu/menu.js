@@ -1,5 +1,6 @@
 // pages/menu/menu.js
 const api = require('../../api');
+const i18n = require('../../utils/i18n');
 
 Page({
   data: {
@@ -11,20 +12,62 @@ Page({
     cart: {},           // {菜品名: 数量}
     cartCount: 0,
     cartTotal: 0,
-    showCart: false
+    showCart: false,
+    lang: i18n.current(),
+    i18n: i18n.pack(i18n.current())
   },
 
   onLoad() {
+    const lang = i18n.current();
+    this.setData({ lang: lang, i18n: i18n.pack(lang) });
     this.loadMenu();
+  },
+
+  onShow() {
+    // 从其它页面切了语言，回来要跟上（菜品已加载则就地重算文案）
+    const lang = i18n.current();
+    if (lang === this.data.lang) return;
+    this.setData({ lang: lang, i18n: i18n.pack(lang) });
+    if (this.data.categories.length) {
+      this.setData({ categories: this.decorate(this.data.categories, lang) });
+    } else if (!this.data.loading) {
+      this.loadMenu();
+    }
+  },
+
+  /** 语言开关 */
+  toggleLang() {
+    const lang = i18n.toggle();
+    this.setData({
+      lang: lang,
+      i18n: i18n.pack(lang),
+      categories: this.decorate(this.data.categories, lang),
+      error: this.data.error ? i18n.pack(lang).loadFail : ''
+    });
+  },
+
+  /** 给菜品补语言相关字段 */
+  decorate(categories, lang) {
+    return categories.map((cat) => ({
+      name: cat.name,
+      items: cat.items.map((d) =>
+        Object.assign({}, d, {
+          spicyText: i18n.spicyText(d.spicy, lang),
+          showSpicy: !!d.spicy && d.spicy !== '不辣',
+          showDesc: lang !== 'en' && !!d.description
+        })
+      )
+    }));
   },
 
   loadMenu() {
     this.setData({ loading: true, error: '' });
+    const lang = this.data.lang;
     api
       .getMenu()
       .then((data) => {
         if (!Array.isArray(data) || data.length === 0) {
-          this.setData({ loading: false, error: '菜单为空' });
+          this.setData({ loading: false, error: i18n.pack(lang).menuEmpty });
           return;
         }
         // 按分类分组
@@ -36,7 +79,7 @@ Page({
           });
         });
         this.setData({
-          categories: grouped,
+          categories: this.decorate(grouped, lang),
           activeCategory: grouped[0] ? grouped[0].name : '',
           loading: false
         });
@@ -45,7 +88,7 @@ Page({
         console.error('加载菜单失败', err);
         this.setData({
           loading: false,
-          error: err.message || '加载失败'
+          error: err.message || i18n.pack(lang).loadFail
         });
       });
   },
@@ -156,9 +199,12 @@ Page({
 
   // 清空购物车
   clearCart() {
+    const t = this.data.i18n;
     wx.showModal({
-      title: '清空购物车',
-      content: '确定要清空购物车吗？',
+      title: t.clearCartTitle,
+      content: t.clearCartBody,
+      confirmText: t.confirm,
+      cancelText: t.cancel,
       success: (res) => {
         if (res.confirm) {
           this.updateCart({});
@@ -172,12 +218,12 @@ Page({
   // 提交订单（跳到 AI 页面让 AI 帮忙下单）
   submitOrder() {
     if (this.data.cartCount === 0) return;
-    // 把购物车内容拼成一句话
+    // 把购物车内容拼成一句话（英文下用英文前缀，菜名保持中文）
     const items = [];
     Object.keys(this.data.cart).forEach((name) => {
       items.push(`${name}×${this.data.cart[name]}`);
     });
-    const orderText = `我要点：${items.join('、')}`;
+    const orderText = this.data.i18n.orderPrefix + items.join('、');
     // 跳转到 chat 页面，自动填入这条消息
     wx.navigateTo({
       url: '/pages/chat/chat?prefill=' + encodeURIComponent(orderText)

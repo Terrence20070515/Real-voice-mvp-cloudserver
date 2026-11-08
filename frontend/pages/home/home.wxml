@@ -5,26 +5,27 @@
   <view class="hero">
     <view class="hero-name">{{shopName}}</view>
     <view class="hero-meta">{{shopMeta}}</view>
+    <view class="hero-lang" bindtap="toggleLang" hover-class="hero-lang-hover">{{i18n.langBtn}}</view>
   </view>
 
   <!-- AI 点单入口 -->
   <view class="entry" bindtap="goToChat" hover-class="entry-hover">
     <view class="entry-badge">AI</view>
     <view class="entry-text">
-      <view class="entry-title">开始 AI 点单</view>
-      <view class="entry-desc">说出你想吃什么，剩下的交给它</view>
+      <view class="entry-title">{{i18n.startOrder}}</view>
+      <view class="entry-desc">{{i18n.startOrderDesc}}</view>
     </view>
     <view class="entry-arrow">›</view>
   </view>
 
   <!-- 菜单 -->
   <view class="section-head">
-    <text class="section-title">菜单</text>
+    <text class="section-title">{{i18n.menuHeading}}</text>
     <text class="section-note">{{shopMeta}}</text>
   </view>
 
   <scroll-view class="cats" scroll-x show-scrollbar="{{false}}" wx:if="{{cats.length > 0}}">
-    <view class="cat-chip {{activeCat === '' ? 'on' : ''}}" data-cat="" bindtap="onSelectCat">全部</view>
+    <view class="cat-chip {{activeCat === '' ? 'on' : ''}}" data-cat="" bindtap="onSelectCat">{{i18n.all}}</view>
     <block wx:for="{{cats}}" wx:key="name">
       <view class="cat-chip {{activeCat === item.name ? 'on' : ''}}" data-cat="{{item.name}}" bindtap="onSelectCat">
         {{item.name}}<text class="cat-count">{{item.count}}</text>
@@ -35,10 +36,10 @@
   <view class="dishes">
     <view class="empty" wx:if="{{visibleGroups.length === 0}}">
       <block wx:if="{{groups.length === 0}}">
-        <view>菜单尚未导入</view>
-        <view class="empty-sub">请先到店家后台导入菜单</view>
+        <view>{{i18n.menuNotImported}}</view>
+        <view class="empty-sub">{{i18n.menuNotImportedSub}}</view>
       </block>
-      <block wx:else>该分类暂无菜品</block>
+      <block wx:else>{{i18n.catEmpty}}</block>
     </view>
 
     <block wx:for="{{visibleGroups}}" wx:key="name" wx:for-item="group">
@@ -49,9 +50,9 @@
             <view class="dish-main">
               <view class="dish-line">
                 <text class="dish-name">{{dish.name}}</text>
-                <text class="tag-spicy" wx:if="{{dish.spicy && dish.spicy !== '不辣'}}">{{dish.spicy}}</text>
+                <text class="tag-spicy" wx:if="{{dish.showSpicy}}">{{dish.spicyText}}</text>
               </view>
-              <view class="dish-desc" wx:if="{{dish.desc}}">{{dish.desc}}</view>
+              <view class="dish-desc" wx:if="{{dish.showDesc}}">{{dish.desc}}</view>
             </view>
             <text class="dish-price">{{dish.price}}</text>
           </view>
@@ -62,9 +63,9 @@
 
   <!-- 次级入口 -->
   <view class="foot-links">
-    <view class="foot-link" bindtap="goToPay">我的订单</view>
+    <view class="foot-link" bindtap="goToPay">{{i18n.myOrders}}</view>
     <view class="foot-divider"></view>
-    <view class="foot-link" bindtap="showAbout">关于</view>
+    <view class="foot-link" bindtap="showAbout">{{i18n.about}}</view>
   </view>
 
 </view>
