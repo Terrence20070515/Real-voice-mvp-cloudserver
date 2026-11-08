@@ -83,8 +83,6 @@
         <text>这是 MVP 演示，支付为模拟，不会真实扣款</text>
       </view>
 
-      <!-- 清台 / 换桌（顾客已离席，开启下一轮干净对话）-->
-      <view class="clear-table-btn" bindtap="clearTable">清台 / 换桌（顾客已离席）</view>
     </block>
   </scroll-view>
 </view>

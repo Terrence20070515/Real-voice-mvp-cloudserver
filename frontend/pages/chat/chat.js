@@ -29,8 +29,6 @@ Page({
     // 输入区域状态
     inputFocus: false,
     keyboardHeight: 0,
-    showMorePanel: false,
-    panelHeight: 0,  // +号面板实际高度（px）
     voiceMode: false, // false=打字模式，true=长按说话模式（微信式切换）
 
     // 状态栏高度（动态获取）
@@ -257,7 +255,7 @@ Page({
   toggleInputMode() {
     if (this.data.recording) return;
     const next = !this.data.voiceMode;
-    this.setData({ voiceMode: next, showMorePanel: false });
+    this.setData({ voiceMode: next });
     if (next) {
       // 切到语音：收起键盘
       wx.hideKeyboard();
@@ -285,7 +283,7 @@ Page({
   },
 
   onInputFocus() {
-    this.setData({ inputFocus: true, showMorePanel: false });
+    this.setData({ inputFocus: true });
     this.scrollToBottom();
   },
 
@@ -293,15 +291,10 @@ Page({
     this.setData({ inputFocus: false });
   },
 
-  // 点击聊天区域：收起键盘和面板
+  // 点击聊天区域：收起键盘
   onChatAreaTap() {
     if (this.data.keyboardHeight > 0) {
       wx.hideKeyboard();
-    }
-    if (this.data.showMorePanel) {
-      // 面板关闭时恢复滚动区高度
-      const scrollH = wx.getSystemInfoSync().windowHeight - this.data.inputBarHeight;
-      this.setData({ showMorePanel: false, panelHeight: 0, scrollHeight: scrollH });
     }
   },
 
@@ -312,25 +305,6 @@ Page({
     setTimeout(() => {
       this.setData({ scrollToView: last.id });
     }, 60);
-  },
-
-  // ─── 「+」面板 ───
-  toggleMorePanel() {
-    const show = !this.data.showMorePanel;
-    const sysInfo = wx.getSystemInfoSync();
-    const rpxToPx = sysInfo.windowWidth / 750;
-    if (show) {
-      wx.hideKeyboard();
-      const panelH = Math.round(160 * rpxToPx);   // 与 .extra-panel.panel-show 的 max-height 保持一致
-      // 面板打开：滚动区再缩小 panelHeight
-      const scrollH = sysInfo.windowHeight - this.data.inputBarHeight - panelH;
-      this.setData({ showMorePanel: show, panelHeight: panelH, scrollHeight: scrollH });
-    } else {
-      // 面板关闭：恢复原始滚动区
-      const scrollH = sysInfo.windowHeight - this.data.inputBarHeight;
-      this.setData({ showMorePanel: show, panelHeight: 0, scrollHeight: scrollH });
-    }
-    this.scrollToBottom();
   },
 
   // ─── 发送消息 ───
@@ -447,79 +421,7 @@ Page({
     this.setData({ showMenu: false });
   },
 
-  // ─── 清空对话 ───
-  // 注意：只清 AI 对话记忆，不换 session_id，不影响已有订单
-  // 「清台」（清订单+重置 session）在买单页操作
-  clearChat() {
-    wx.showModal({
-      title: '清空对话',
-      content: 'AI 会忘记之前的对话内容，但已下的订单不受影响。\n\n确定继续吗？',
-      confirmText: '确定清空',
-      confirmColor: '#141719',
-      success: (res) => {
-        if (!res.confirm) return;
-        wx.showLoading({ title: '清除中...' });
-        api
-          .clearSession(this.data.sessionId)
-          .then(() => {
-            // 只清本地聊天记录，不换 session_id
-            util.clearChatHistory(this.data.sessionId);
-            this.setData({ messages: [] });
-            this.addMessage(
-              '对话已清空\n\n有什么可以帮您的？请问几位用餐？',
-              'assistant'
-            );
-          })
-          .catch((err) => {
-            console.error('清空失败', err);
-            wx.showToast({ title: '清除失败，请重试', icon: 'none' });
-          })
-          .then(() => {
-            wx.hideLoading();
-          });
-      }
-    });
-  },
-
   // ─── 清台 / 换桌 ───
-  // 顾客已离席：彻底重置（清账单 + 清 AI 记忆 + 换全新 session + 清本地记录）
-  // 关键保证：重新生成 session_id，下一位顾客拿到的是「零历史」的全新会话，
-  // 后端对话里绝不会残留上一轮的「是否加单」，AI 会直接从头问候、开始下一轮。
-  clearTable() {
-    const oldSid = this.data.sessionId;
-    wx.showModal({
-      title: '清台 / 换桌',
-      content: '确认该桌顾客已离席？\n将清除账单与 AI 对话记忆，并为下一位顾客开启全新对话。',
-      confirmText: '确认清台',
-      confirmColor: '#141719',
-      success: (res) => {
-        if (!res.confirm) return;
-        wx.showLoading({ title: '清台中...' });
-        // 1) 后端清账单 + 清 AI 记忆（尽力而为；失败也不影响下面的本地重置）
-        api
-          .clearOrders(oldSid)
-          .catch((err) => {
-            console.warn('后端清台未成功（本地仍会重置）', err);
-          })
-          .then(() => {
-            // 2) 换全新的 session_id —— 这是「下一轮绝对干净」的根本保证
-            const newSid = util.generateSessionId();
-            util.saveSessionId(newSid);
-            // 3) 清掉旧 session 的本地聊天记录
-            util.clearChatHistory(oldSid);
-            // 4) 重置界面为全新问候，开启下一轮对话
-            this.setData({ sessionId: newSid, messages: [] });
-            this.addMessage(
-              '欢迎光临。我是您的 AI 点餐助手。请问几位用餐？有什么忌口或口味偏好吗？',
-              'assistant'
-            );
-            wx.hideLoading();
-            wx.showToast({ title: '清台完成，已为新客准备', icon: 'success' });
-          });
-      }
-    });
-  },
-
   goBack() {
     wx.navigateBack();
   }

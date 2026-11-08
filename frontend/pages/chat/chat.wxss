@@ -420,43 +420,6 @@
   background: #2b3034;
 }
 
-/* ============ 扩展面板（只保留清空对话）============ */
-.extra-panel {
-  position: fixed;
-  left: 0;
-  width: 100%;
-  background: #f7f7f7;
-  z-index: 150;
-  border-top: 1rpx solid #dcdcdc;
-  /* 默认隐藏：高度0 + overflow hidden */
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.25s ease-out;
-}
-
-.extra-panel.panel-show {
-  max-height: 160rpx;
-}
-
-.panel-list {
-  padding: 8rpx 0;
-}
-
-.panel-row {
-  padding: 30rpx 34rpx;
-  font-size: 30rpx;
-  color: #333;
-}
-
-.panel-row:active {
-  background: #ececec;
-}
-
-.panel-row-text {
-  font-size: 30rpx;
-  color: #333;
-}
-
 /* ============ 菜单浮窗 ============ */
 .menu-mask {
   position: fixed;

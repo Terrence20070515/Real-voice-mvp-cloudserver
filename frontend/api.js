@@ -230,13 +230,6 @@ const api = {
   /**
    * 清除会话历史
    */
-  clearSession(sessionId) {
-    return request({
-      url: '/api/session/clear?session_id=' + encodeURIComponent(sessionId),
-      method: 'POST'
-    });
-  },
-
   /**
    * 微信登录
    */
@@ -264,16 +257,6 @@ const api = {
   payOrder(orderId) {
     return request({
       url: '/api/orders/' + encodeURIComponent(orderId) + '/pay',
-      method: 'POST'
-    });
-  },
-
-  /**
-   * 清台：清除某 session 的所有订单 + 对话历史
-   */
-  clearOrders(sessionId) {
-    return request({
-      url: '/api/orders/clear?session_id=' + encodeURIComponent(sessionId),
       method: 'POST'
     });
   }
