@@ -159,8 +159,11 @@ def _log_conversation(
 # 放在用户消息里（而不是只改 system prompt），好处是切语言时"最新一条"总是生效。
 _LANG_HINT = {
     "zh": "【本轮语言要求】请用中文回答（菜名按菜单原文）。以本条为准，覆盖之前的语言偏好。",
-    "en": "【Language requirement for this turn】Reply in English only "
-          "(dish names may stay in the original Chinese). "
+    "en": "【Language requirement for this turn】Reply in English only. "
+          "ONLY dish names may stay in Chinese — translate every other field value, "
+          "including category names and dish descriptions. "
+          "Spiciness must be English: 微辣=Mild, 中辣=Medium, 麻辣=Hot, 特辣=Extra hot, 不辣=Not spicy. "
+          "Never mix Chinese words or Chinese punctuation into an English sentence. "
           "This overrides any earlier language preference.",
 }
 
