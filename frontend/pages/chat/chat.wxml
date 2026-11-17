@@ -179,3 +179,22 @@
     </scroll-view>
   </view>
 </view>
+
+<!-- 进店语言选择（大弹窗） -->
+<view class="lang-gate" wx:if="{{showLangGate}}" catchtap="noop">
+  <view class="lang-gate-card">
+    <view class="lg-title">选择点单语言</view>
+    <view class="lg-sub">Choose your language</view>
+    <view class="lg-options">
+      <view class="lg-option" data-lang="zh" catchtap="chooseLang">
+        <text class="lg-label">中文点单</text>
+        <text class="lg-note">用中文聊天、下单</text>
+      </view>
+      <view class="lg-option" data-lang="en" catchtap="chooseLang">
+        <text class="lg-label">Order in English</text>
+        <text class="lg-note">We'll talk in English</text>
+      </view>
+    </view>
+    <view class="lg-foot">进入后也可以随时切换 · You can switch anytime</view>
+  </view>
+</view>

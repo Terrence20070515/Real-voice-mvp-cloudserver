@@ -24,6 +24,7 @@ Page({
     lang: i18n.current(),   // 回复语言：zh / en（跟随后端 locale）
     i18n: i18n.pack(i18n.current()),
     isLoading: false,
+    showLangGate: false,   // 进店语言选择弹窗（只在新会话时出现）
     showMenu: false,
     menuData: [],
     menuLoading: false,
@@ -85,6 +86,8 @@ Page({
     } else {
       // 第一次进入，添加欢迎消息（不带店名：店名由后端菜单驱动，这里保持通用）
       this.addMessage(this.welcomeText(this.data.lang), 'assistant');
+      // 新会话先问语言：中文点单还是英文点单
+      this.setData({ showLangGate: true });
     }
 
     // 3. 预加载菜单
@@ -273,9 +276,24 @@ Page({
   },
 
   // ─── 语言切换 ───
+  // ─── 进店选语言：选英文就直接用英文开场 ───
+  chooseLang(e) {
+    const lang = e.currentTarget.dataset.lang === 'en' ? 'en' : 'zh';
+    i18n.set(lang);
+    const msgs = this.data.messages || [];
+    if (msgs.length === 1 && msgs[0].role === 'assistant') {
+      msgs[0].content = this.welcomeText(lang);
+      util.saveChatHistory(this.data.sessionId, msgs);
+    }
+    this.setData({ lang, i18n: i18n.pack(lang), messages: msgs, showLangGate: false });
+  },
+
+  // 弹窗外点击不穿透
+  noop() {},
+
   welcomeText(lang) {
     return lang === 'en'
-      ? "Hi! I'm your AI ordering assistant.\n\nTell me what you'd like — dishes, taste preferences, or just say a dish name.\n\nHow many guests?"
+      ? "Hi! I'll take your order in English — feel free to type or speak.\n\nTell me what you'd like — dishes, taste preferences, or just say a dish name.\n\nHow many guests?"
       : '您好！我是 AI 点餐助手。\n\n可以告诉我您想吃什么，比如「我想吃辣的」、「推荐几个菜」，或者直接说出菜名。\n\n请问几位用餐？';
   },
 

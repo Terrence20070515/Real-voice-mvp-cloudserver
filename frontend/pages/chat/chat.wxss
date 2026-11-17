@@ -719,3 +719,85 @@
   font-size: 26rpx;
   color: #666;
 }
+
+/* ============ 进店语言选择（大弹窗）============ */
+.lang-gate {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 48rpx;
+  background: rgba(20, 23, 25, 0.45);
+}
+
+.lang-gate-card {
+  width: 100%;
+  padding: 52rpx 40rpx 40rpx;
+  background: #fff;
+  border-radius: 32rpx;
+  box-shadow: 0 20rpx 60rpx rgba(16, 20, 24, 0.18);
+  box-sizing: border-box;
+}
+
+.lg-title {
+  font-size: 38rpx;
+  font-weight: 600;
+  color: #141719;
+  text-align: center;
+}
+
+.lg-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8c959f;
+  text-align: center;
+}
+
+.lg-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 44rpx;
+}
+
+.lg-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 32rpx 20rpx;
+  border: 1rpx solid #e4e6e9;
+  border-radius: 20rpx;
+  background: #f5f6f7;
+}
+
+.lg-option:active {
+  background: #eef0f2;
+}
+
+.lg-label {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #141719;
+  white-space: nowrap;
+}
+
+.lg-note {
+  font-size: 22rpx;
+  color: #8c959f;
+  white-space: nowrap;
+}
+
+.lg-foot {
+  margin-top: 32rpx;
+  font-size: 22rpx;
+  color: #8c959f;
+  text-align: center;
+  line-height: 1.6;
+}
