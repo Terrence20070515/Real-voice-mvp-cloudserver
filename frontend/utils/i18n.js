@@ -227,4 +227,24 @@ function spicyText(value, lang) {
   return table[value] || value;
 }
 
-module.exports = { KEY, current, set, toggle, pack, normalize, spicyText };
+/**
+ * 按顾客这句话本身判断语言（与界面开关无关）。
+ * 只有中文 → zh；只有英文 → en；中英混排看有没有中文点单动词；纯数字 → null
+ */
+const ZH_INTENT = ['来', '要', '点', '加', '份', '个', '碗', '杯', '瓶', '盘', '吃', '喝',
+  '推荐', '什么', '多少', '怎么', '可以', '有没有', '结账', '买单', '吗', '呢'];
+
+function detectLang(text) {
+  const t = (text || '').trim();
+  if (!t) return null;
+  const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  const latin = (t.match(/[A-Za-z]{2,}/g) || []).length;
+  if (cjk && !latin) return 'zh';
+  if (latin && !cjk) return 'en';
+  if (cjk && latin) {
+    return ZH_INTENT.some((w) => t.indexOf(w) >= 0) ? 'zh' : 'en';
+  }
+  return null;
+}
+
+module.exports = { KEY, current, set, toggle, pack, normalize, spicyText, detectLang };

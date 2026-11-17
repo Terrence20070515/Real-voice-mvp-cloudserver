@@ -360,6 +360,13 @@ Page({
   sendContent(content, voice) {
     if (!content || this.data.isLoading) return;
 
+    // 语言跟随顾客：这句话是英文就切成英文答，是中文就切回中文（界面一起跟着变）
+    const spoke = i18n.detectLang(content);
+    if (spoke && spoke !== this.data.lang) {
+      i18n.set(spoke);
+      this.setData({ lang: spoke, i18n: i18n.pack(spoke) });
+    }
+
     if (voice) {
       this.addVoiceMessage(voice.voiceUrl, voice.durationSec, content);
     } else {

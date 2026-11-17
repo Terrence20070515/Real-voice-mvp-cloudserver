@@ -167,6 +167,42 @@ _LANG_HINT = {
           "This overrides any earlier language preference.",
 }
 
+# ── 语言跟随顾客 ──
+# 硬规则：顾客这句话用什么语言，就用什么语言答。
+# 前端语言开关只作为「判不出语言」时的兜底（例如顾客只回了个「2」或「OK」）。
+_CJK_CHAR = re.compile(r"[\u4e00-\u9fff]")
+_LATIN_WORD = re.compile(r"[A-Za-z]{2,}")
+# 中文点单动作字：混排句里出现即当作中文提问
+# （避免「来一份 Har Gow」这种夹英文菜名的话被判成英文）
+_ZH_INTENT = (
+    "来", "要", "点", "加", "份", "个", "碗", "杯", "瓶", "盘", "吃", "喝",
+    "推荐", "什么", "多少", "怎么", "可以", "有没有", "结账", "买单", "吗", "呢",
+)
+
+
+def _detect_lang(text: str) -> str | None:
+    """按这句话本身判断顾客用的语言；判不出来返回 None。
+
+    规则：
+      - 只有中文 → zh；只有英文 → en
+      - 中英混排（"I'd like 虾饺皇"）：有中文点单动词算中文，否则算英文
+        （英文母语者夹中文菜名很常见，反过来中文母语者夹英文菜名较少）
+      - 纯数字 / 符号 → None，交给前端开关或会话记忆兜底
+    """
+    t = (text or "").strip()
+    if not t:
+        return None
+    cjk = len(_CJK_CHAR.findall(t))
+    latin = len(_LATIN_WORD.findall(t))
+    if cjk and not latin:
+        return "zh"
+    if latin and not cjk:
+        return "en"
+    if cjk and latin:
+        return "zh" if any(w in t for w in _ZH_INTENT) else "en"
+    return None
+
+
 # 少数硬编码兜底回复（不经过模型）也要跟着语言走
 _FIXED = {
     "greeting_cont": {
@@ -625,9 +661,14 @@ class DiningAgent:
         并发保护的必要性见 _session_lock 的说明 —— 不加锁时，同一会话的并发请求
         会交错写入共享的会话历史，导致回复里报出别人的订单号。
 
-        locale: "zh" / "en"，前端语言开关传入；不传则沿用该会话上次的语言。
+        locale: "zh" / "en"，前端语言开关传入；**仅在判不出顾客语言时兜底**。
+               顾客这句话本身能判出语言时，一律以顾客为准（英文问→英文答，中文问→中文答）。
         """
-        if locale in ("zh", "en"):
+        # 语言优先级：顾客这句话 > 前端开关 > 会话上次
+        detected = _detect_lang(message)
+        if detected:
+            self.session_locale[session_id] = detected
+        elif locale in ("zh", "en"):
             self.session_locale[session_id] = locale
         with self._session_lock(session_id):
             return self._chat_locked(session_id, message)
