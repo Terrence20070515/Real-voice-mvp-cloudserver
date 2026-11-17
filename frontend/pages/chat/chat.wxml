@@ -161,17 +161,17 @@
     <scroll-view scroll-y class="menu-scroll" wx:else>
       <block wx:for="{{menuData}}" wx:key="name">
         <view class="category-section">
-          <view class="category-title">{{item.name}}</view>
+          <view class="category-title">{{lang === 'en' && item.name_en ? item.name_en : item.name}}</view>
           <block wx:for="{{item.items}}" wx:for-item="dish" wx:key="name">
             <view class="menu-card">
               <view class="card-row">
                 <view class="dish-name-wrap">
-                  <text class="dish-name">{{dish.name}}</text>
-                  <text class="dish-spicy" wx:if="{{dish.spicy !== '不辣'}}">{{dish.spicy}}</text>
+                  <text class="dish-name">{{lang === 'en' && dish.name_en ? dish.name_en : dish.name}}</text>
+                  <text class="dish-spicy" wx:if="{{dish.spicy !== '不辣'}}">{{lang === 'en' && dish.spicy_en ? dish.spicy_en : dish.spicy}}</text>
                 </view>
                 <text class="dish-price">{{dish.price}}</text>
               </view>
-              <text class="dish-desc">{{dish.description}}</text>
+              <text class="dish-desc">{{lang === 'en' && dish.description_en ? dish.description_en : dish.description}}</text>
             </view>
           </block>
         </view>

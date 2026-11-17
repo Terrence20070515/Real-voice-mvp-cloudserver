@@ -80,15 +80,22 @@ Page({
 
   /** 给菜品补上语言相关字段：辣度翻译、是否显示描述 */
   decorateGroups(groups, lang) {
+    const en = lang === 'en';
     return groups.map((g) => ({
       name: g.name,
-      items: g.items.map((d) =>
-        Object.assign({}, d, {
-          spicyText: i18n.spicyText(d.spicy, lang),
-          showSpicy: !!d.spicy && d.spicy !== '不辣',
-          showDesc: lang !== 'en' && !!d.desc
-        })
-      )
+      nameShow: en && g.name_en ? g.name_en : g.name,
+      items: g.items.map((d) => {
+        const sp = en && d.spicy_en ? d.spicy_en : i18n.spicyText(d.spicy, lang);
+        const noSpicy = en ? 'Not spicy' : '不辣';
+        const desc = en && d.desc_en ? d.desc_en : d.desc;
+        return Object.assign({}, d, {
+          nameShow: en && d.name_en ? d.name_en : d.name,
+          descShow: desc || '',
+          spicyText: sp,
+          showSpicy: !!sp && sp !== noSpicy,
+          showDesc: !!desc
+        });
+      })
     }));
   },
 

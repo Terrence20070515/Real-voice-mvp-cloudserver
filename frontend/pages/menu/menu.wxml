@@ -32,7 +32,7 @@
           data-name="{{item.name}}"
           bindtap="selectCategory"
         >
-          {{item.name}}
+          {{item.nameShow || item.name}}
           <view class="sidebar-count" wx:if="{{activeCategory === item.name}}"></view>
         </view>
       </scroll-view>
@@ -41,7 +41,7 @@
       <scroll-view scroll-y class="dish-list" scroll-into-view="cat_{{activeCategory}}">
         <block wx:for="{{categories}}" wx:key="name">
           <view id="cat_{{item.name}}" class="category-block">
-            <view class="category-header">{{item.name}}</view>
+            <view class="category-header">{{item.nameShow || item.name}}</view>
             <view
               wx:for="{{item.items}}"
               wx:for-item="dish"
@@ -53,10 +53,10 @@
               </view>
               <view class="dish-content">
                 <view class="dish-name-row">
-                  <text class="dish-name">{{dish.name}}</text>
+                  <text class="dish-name">{{dish.nameShow || dish.name}}</text>
                   <text class="dish-spicy" wx:if="{{dish.showSpicy}}">{{dish.spicyText}}</text>
                 </view>
-                <text class="dish-desc" wx:if="{{dish.showDesc}}">{{dish.description}}</text>
+                <text class="dish-desc" wx:if="{{dish.showDesc}}">{{dish.descShow || dish.description}}</text>
                 <view class="dish-bottom">
                   <text class="dish-price">{{dish.price}}</text>
                   <view class="qty-control">

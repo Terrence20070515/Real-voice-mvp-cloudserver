@@ -48,15 +48,22 @@ Page({
 
   /** 给菜品补语言相关字段 */
   decorate(categories, lang) {
+    const en = lang === 'en';
     return categories.map((cat) => ({
       name: cat.name,
-      items: cat.items.map((d) =>
-        Object.assign({}, d, {
-          spicyText: i18n.spicyText(d.spicy, lang),
-          showSpicy: !!d.spicy && d.spicy !== '不辣',
-          showDesc: lang !== 'en' && !!d.description
-        })
-      )
+      nameShow: en && cat.name_en ? cat.name_en : cat.name,
+      items: cat.items.map((d) => {
+        const sp = en && d.spicy_en ? d.spicy_en : i18n.spicyText(d.spicy, lang);
+        const noSpicy = en ? 'Not spicy' : '不辣';
+        const desc = en && d.description_en ? d.description_en : d.description;
+        return Object.assign({}, d, {
+          nameShow: en && d.name_en ? d.name_en : d.name,
+          descShow: desc || '',
+          spicyText: sp,
+          showSpicy: !!sp && sp !== noSpicy,
+          showDesc: !!desc
+        });
+      })
     }));
   },
 
@@ -98,13 +105,16 @@ Page({
     const order = ['招牌必点', '凉菜', '热菜·川味', '热菜·清淡', '汤类', '主食', '饮品'];
     items.forEach((item) => {
       const cat = item['分类'] || '其他';
-      if (!map[cat]) map[cat] = { name: cat, items: [] };
+      if (!map[cat]) map[cat] = { name: cat, name_en: item['分类_en'] || '', items: [] };
       map[cat].items.push({
         name: item['菜品'],
+        name_en: item['菜品_en'] || '',
         price: item['价格'],
         priceNum: parseFloat(String(item['价格']).replace('¥', '')) || 0,
         spicy: item['辣度'],
+        spicy_en: item['辣度_en'] || '',
         description: item['描述'],
+        description_en: item['描述_en'] || '',
         allergens: item['过敏原'],
         cartQty: 0
       });

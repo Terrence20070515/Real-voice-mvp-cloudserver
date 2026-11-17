@@ -166,12 +166,17 @@ Page({
     const order = ['招牌必点', '凉菜', '热菜·川味', '热菜·清淡', '汤类', '主食', '饮品'];
     items.forEach((item) => {
       const cat = item['分类'] || '其他';
-      if (!map[cat]) map[cat] = { name: cat, items: [] };
+      if (!map[cat]) {
+        map[cat] = { name: cat, name_en: item['分类_en'] || '', items: [] };
+      }
       map[cat].items.push({
         name: item['菜品'],
+        name_en: item['菜品_en'] || '',
         price: item['价格'],
         spicy: item['辣度'],
+        spicy_en: item['辣度_en'] || '',
         description: item['描述'],
+        description_en: item['描述_en'] || '',
         allergens: item['过敏原']
       });
     });

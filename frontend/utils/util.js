@@ -165,7 +165,12 @@ const util = {
         price: this.safeStr(it['价格']) || this.safeStr(it.price),
         spicy: this.safeStr(it['辣度']) || this.safeStr(it.spicy),
         desc: this.safeStr(it['描述']) || this.safeStr(it.description),
-        allergens: this.safeStr(it['过敏原']) || this.safeStr(it.allergens)
+        allergens: this.safeStr(it['过敏原']) || this.safeStr(it.allergens),
+        cat_en: this.safeStr(it['分类_en']) || this.safeStr(it.category_en),
+        name_en: this.safeStr(it['菜品_en']) || this.safeStr(it.name_en),
+        spicy_en: this.safeStr(it['辣度_en']) || this.safeStr(it.spicy_en),
+        desc_en: this.safeStr(it['描述_en']) || this.safeStr(it.description_en),
+        allergens_en: this.safeStr(it['过敏原_en']) || this.safeStr(it.allergens_en)
       };
     };
 
@@ -173,7 +178,7 @@ const util = {
       const d = pick(it, catName);
       if (!d) return;
       let g = out.groups.find(x => x.name === d.cat);
-      if (!g) { g = { name: d.cat, items: [] }; out.groups.push(g); }
+      if (!g) { g = { name: d.cat, name_en: d.cat_en, items: [] }; out.groups.push(g); }
       g.items.push(d);
       out.total++;
     };
@@ -196,16 +201,16 @@ const util = {
 
   /** 菜系关键词表（用于后端未提供店名时的推断） */
   CUISINES: [
-    { name: '川菜', keys: ['热菜·川味', '川味', '川菜', '麻辣', '水煮', '回锅', '宫保', '麻婆', '夫妻肺片',
+    { name: '川菜', en: 'Sichuan', keys: ['热菜·川味', '川味', '川菜', '麻辣', '水煮', '回锅', '宫保', '麻婆', '夫妻肺片',
         '口水鸡', '毛血旺', '辣子鸡', '酸菜鱼', '担担', '冒菜', '豆瓣', '花椒', '鱼香', '钵钵鸡', '串串', '辣'] },
-    { name: '日料', keys: ['日式', '日料', '寿司', '刺身', '天妇罗', '味噌', '拉面', '鳗鱼', '照烧', '亲子丼',
+    { name: '日料', en: 'Japanese', keys: ['日式', '日料', '寿司', '刺身', '天妇罗', '味噌', '拉面', '鳗鱼', '照烧', '亲子丼',
         '清酒', '芥末', '三文鱼', '金枪鱼', '乌冬', '居酒屋', '手卷', '军舰', '茶碗蒸'] },
-    { name: '粤菜', keys: ['粤菜', '粤式', '港式', '虾饺', '烧卖', '叉烧', '白灼', '肠粉', '煲仔', '老火',
+    { name: '粤菜', en: 'Cantonese', keys: ['粤菜', '粤式', '港式', '虾饺', '烧卖', '叉烧', '白灼', '肠粉', '煲仔', '老火',
         '艇仔', '凤爪', '砂锅粥', '蒸排骨'] },
-    { name: '湘菜', keys: ['湘菜', '剁椒', '小炒肉', '口味虾', '臭豆腐', '外婆菜', '擂辣椒'] },
-    { name: '韩餐', keys: ['韩式', '韩餐', '泡菜', '石锅', '拌饭', '年糕', '部队锅', '大酱汤', '冷面', '烤肉'] },
-    { name: '泰餐', keys: ['泰式', '泰餐', '冬阴功', '青木瓜', '打抛', '椰浆', '绿咖喱', '菠萝饭'] },
-    { name: '西餐', keys: ['牛排', '意面', '披萨', '汉堡', '罗宋', '提拉米苏', '帕尼尼', '沙拉'] }
+    { name: '湘菜', en: 'Hunan', keys: ['湘菜', '剁椒', '小炒肉', '口味虾', '臭豆腐', '外婆菜', '擂辣椒'] },
+    { name: '韩餐', en: 'Korean', keys: ['韩式', '韩餐', '泡菜', '石锅', '拌饭', '年糕', '部队锅', '大酱汤', '冷面', '烤肉'] },
+    { name: '泰餐', en: 'Thai', keys: ['泰式', '泰餐', '冬阴功', '青木瓜', '打抛', '椰浆', '绿咖喱', '菠萝饭'] },
+    { name: '西餐', en: 'Western', keys: ['牛排', '意面', '披萨', '汉堡', '罗宋', '提拉米苏', '帕尼尼', '沙拉'] }
   ],
 
   /**
@@ -239,6 +244,19 @@ const util = {
     const r = this.safeStr(restaurant).trim();
     if (r) return r;
     return this.inferCuisine(groups) || '本店';
+  },
+
+  // 英文店名：已知菜系给标准译名；不确定的（可能是品牌名）原样保留
+  displayNameEn(restaurant, groups) {
+    const map = (zh) => {
+      const hit = this.CUISINES.find(c => c.name === zh);
+      return hit ? hit.en : null;
+    };
+    const r = restaurant && String(restaurant).trim();
+    if (r) return map(r) || r;
+    const c = this.inferCuisine(groups);
+    if (!c) return 'Restaurant';
+    return map(c) || c;
   },
 
   /** 编辑距离（短字符串，用于菜名同音字纠错） */

@@ -236,7 +236,11 @@ TOOL_DEFINITIONS = [
 # ─── 工具实现 ───
 
 def query_menu_list(category: Optional[str] = None, keyword: Optional[str] = None) -> list[dict]:
-    """查询菜单，返回 list[dict]（供 HTTP API 使用）"""
+    """查询菜单，返回 list[dict]（供 HTTP API 使用）
+
+    菜单里若带 *_en 英文字段（导入时生成），一并返回；前端英文模式优先取 `xxx_en`，
+    缺失则回退中文。没生成过英文的旧菜单不会因此报错。
+    """
     menu = _load_json(MENU_FILE)
     results = []
     for cat in menu.get("categories", []):
@@ -245,7 +249,7 @@ def query_menu_list(category: Optional[str] = None, keyword: Optional[str] = Non
         for item in cat["items"]:
             if keyword and keyword not in item["name"]:
                 continue
-            results.append({
+            row = {
                 "分类": cat["name"],
                 "菜品": item["name"],
                 "价格": f"¥{item['price']}",
@@ -253,7 +257,21 @@ def query_menu_list(category: Optional[str] = None, keyword: Optional[str] = Non
                 "食材": ", ".join(item["ingredients"]),
                 "过敏原": ", ".join(item["allergens"]) if item["allergens"] else "无",
                 "描述": item["description"],
-            })
+            }
+            # 英文字段按需附加，避免给没有英文的菜单塞一堆空串
+            if cat.get("name_en"):
+                row["分类_en"] = cat["name_en"]
+            if item.get("name_en"):
+                row["菜品_en"] = item["name_en"]
+            if item.get("spicy_en"):
+                row["辣度_en"] = item["spicy_en"]
+            if item.get("ingredients_en"):
+                row["食材_en"] = ", ".join(item["ingredients_en"])
+            if item.get("allergens_en"):
+                row["过敏原_en"] = ", ".join(item["allergens_en"])
+            if item.get("description_en"):
+                row["描述_en"] = item["description_en"]
+            results.append(row)
     return results
 
 

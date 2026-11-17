@@ -358,6 +358,10 @@ def api_import_menu(req: MenuImportRequest):
                 target=_regenerate_training_examples, args=(new_menu,), daemon=True
             ).start()
             msg += f"（菜单变化 {diff:.0%}，正在后台重新生成训练示例，约 2 分钟后生效）"
+        # 英文名缺失就后台补（幂等：已齐则立即返回，不额外花钱）
+        threading.Thread(
+            target=_generate_menu_en, args=(new_menu,), daemon=True
+        ).start()
         return {"status": "ok", "message": msg, "menu_diff": round(diff, 3)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"写入失败: {e}")
@@ -392,6 +396,109 @@ def _menu_diff_ratio(old_menu: dict, new_menu: dict) -> float:
     if not union:
         return 0.0
     return 1 - len(old_n & new_n) / len(union)
+
+
+def _generate_menu_en(menu: dict) -> None:
+    """后台：给菜单补英文（分类名 / 菜名 / 描述 / 食材 / 过敏原 / 辣度）。
+
+    幂等：已有 name_en 的条目一样会带上，但整份菜单都齐了就直接返回，不重复花钱。
+    失败只打日志——前端英文模式会自动回退中文，不影响点餐。
+    """
+    try:
+        cats = menu.get("categories") or []
+        if not cats:
+            return
+        need = any(
+            (not c.get("name_en")) or any(not it.get("name_en") for it in c.get("items", []))
+            for c in cats
+        )
+        if not need:
+            print("[MENU-EN] 英文已齐，跳过", flush=True)
+            return
+
+        cfg = get_llm_config()
+        client = OpenAI(api_key=cfg["api_key"], base_url=cfg["base_url"])
+
+        slim = {
+            "categories": [
+                {
+                    "name": c["name"],
+                    "items": [
+                        {
+                            "name": it["name"],
+                            "description": it.get("description", ""),
+                            "ingredients": it.get("ingredients", []),
+                            "allergens": it.get("allergens", []),
+                            "spicy": it.get("spicy", ""),
+                        }
+                        for it in c.get("items", [])
+                    ],
+                }
+                for c in cats
+            ]
+        }
+
+        prompt = f"""你是粤菜/中餐厅的英文菜单翻译。把下面这份中文菜单翻成英文。
+
+要求：
+1. 分类名意译（烧腊=Roasts, 点心=Dim Sum, 小炒=Stir-fry, 海鲜=Seafood, 老火汤=Soups, 主食=Rice & Noodles, 甜品饮品=Desserts & Drinks）
+2. 菜名用英文餐饮界通用叫法，不要拼音音译：虾饺=Shrimp Dumplings (Har Gow)、烧卖=Siu Mai、
+   肠粉=Rice Noodle Rolls、豉汁凤爪=Chicken Feet in Black Bean Sauce、牛河=Beef Chow Fun、
+   避风塘炒蟹=Typhoon Shelter Crab、艇仔粥=Boat Congee、杨枝甘露=Mango Pomelo Sago、
+   双皮奶=Double Skin Milk Pudding、丝袜奶茶=Hong Kong Milk Tea
+3. 菜名必须互不相同，同名要加做法区分（如 干炒牛河=Dry-fried Beef Chow Fun 与 豉汁炒牛河=Beef Chow Fun with Black Bean Sauce）
+4. 描述一句英文，保留火候/口感/做法卖点，不超过 12 个词，末尾不加句号
+5. 食材和过敏原用标准词：Gluten, Shellfish, Crustaceans, Fish, Soy, Egg, Dairy, Peanuts, Tree nuts, Sesame
+6. 辣度：不辣=Not spicy, 微辣=Mild, 中辣=Medium, 麻辣=Hot, 特辣=Extra hot
+
+只输出 JSON，结构照抄输入，每层加英文：
+{{"categories":[{{"name":"烧腊","name_en":"Roasts","items":[
+{{"name":"脆皮烧鹅","name_en":"Crispy Roast Goose","description_en":"...","ingredients_en":["..."],"allergens_en":["Gluten"],"spicy_en":"Not spicy"}}]}}]}}
+
+categories 与 items 的数量和顺序必须与输入完全一致，一个都不能少或多。
+
+输入：
+{json.dumps(slim, ensure_ascii=False)}"""
+
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=8000,
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        en = json.loads(raw)
+
+        en_cats = en.get("categories") or []
+        if len(en_cats) != len(cats):
+            print("[MENU-EN] 分类数不一致，放弃", flush=True)
+            return
+
+        for c0, c1 in zip(cats, en_cats):
+            c0["name_en"] = c1.get("name_en", "")
+            items0, items1 = c0.get("items", []), c1.get("items", [])
+            if len(items0) != len(items1):
+                print("[MENU-EN] %s 菜品数不一致，放弃" % c0["name"], flush=True)
+                return
+            for i0, i1 in zip(items0, items1):
+                i0["name_en"] = i1.get("name_en", "")
+                i0["description_en"] = (i1.get("description_en") or "").rstrip(".")
+                i0["ingredients_en"] = i1.get("ingredients_en", [])
+                i0["allergens_en"] = i1.get("allergens_en", [])
+                i0["spicy_en"] = i1.get("spicy_en", "")
+
+        tmp = str(MENU_FILE) + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(menu, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, MENU_FILE)
+        total = sum(len(c.get("items", [])) for c in cats)
+        print("[MENU-EN] 生成完成: %d 个分类 / %d 道菜" % (len(cats), total), flush=True)
+    except Exception as e:
+        print("[MENU-EN] 生成英文菜单失败: %s" % e, flush=True)
 
 
 def _regenerate_training_examples(new_menu: dict) -> None:
